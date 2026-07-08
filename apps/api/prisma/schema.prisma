@@ -1,0 +1,454 @@
+// Goldway Capital — PostgreSQL data model (NestJS backend)
+// -----------------------------------------------------------------------------
+// No health/medical/coverage/enrollment columns exist anywhere — that boundary
+// is enforced structurally. SOA is status-only (no document storage).
+// -----------------------------------------------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Runtime: transaction-mode pooler (pgbouncer, port 6543).
+  url       = env("DATABASE_URL")
+  // Migrations: session-mode pooler / direct connection (port 5432).
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+enum UserRole {
+  OWNER
+  VA
+  CONTENT_EDITOR
+  COMPLIANCE_REVIEWER
+  DEVELOPER_ADMIN
+}
+
+enum LeadSource {
+  MEDICARE
+  FINAL_EXPENSE
+  REVERSE_MTG
+  PROBATE
+  RECRUITING
+}
+
+enum PipelineStage {
+  NEW
+  CONTACTED
+  APPOINTMENT_SET
+  CLOSED
+}
+
+enum GhlSyncStatus {
+  NOT_SYNCED
+  PENDING
+  SYNCED
+  SYNCED_MOCK
+  FAILED
+}
+
+enum SoaStatus {
+  NOT_REQUIRED
+  REQUIRED
+  PENDING
+  COMPLETED_EXTERNALLY
+}
+
+enum RecruitingStatus {
+  NEW
+  REVIEWED
+  CONTACTED
+  FOLLOW_UP
+  NOT_FIT
+}
+
+enum ContentStatus {
+  DRAFT
+  NEEDS_REVIEW
+  APPROVED
+  PUBLISHED
+  REJECTED
+}
+
+enum SocialPlatform {
+  FACEBOOK
+  INSTAGRAM
+  LINKEDIN
+}
+
+enum SocialPostStatus {
+  PENDING
+  SCHEDULED
+  PUBLISHED
+  FAILED
+}
+
+enum CallOutcome {
+  NO_ANSWER
+  LEFT_VOICEMAIL
+  SPOKE
+  SCHEDULED
+  NOT_INTERESTED
+}
+
+enum TaskStatus {
+  OPEN
+  DONE
+  CANCELLED
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  NO_SHOW
+  CANCELLED
+}
+
+// ---------------------------------------------------------------------------
+// Auth & access control
+// ---------------------------------------------------------------------------
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         UserRole  @default(VA)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  assignedLeads Lead[]         @relation("LeadAssignee")
+  notes         LeadNote[]
+  callLogs      CallLog[]
+  emailLogs     EmailLog[]
+  tasksCreated  FollowUpTask[] @relation("TaskCreator")
+  tasksAssigned FollowUpTask[] @relation("TaskAssignee")
+  contentPosts  ContentPost[]  @relation("PostAuthor")
+  auditLogs     AuditLog[]
+
+  @@index([role])
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  key         UserRole @unique
+  name        String
+  description String?
+  // Flat list of permission keys granted to this role (see rbac constants).
+  permissions String[]
+  createdAt   DateTime @default(now())
+}
+
+model Permission {
+  id          String @id @default(cuid())
+  key         String @unique
+  description String
+}
+
+// ---------------------------------------------------------------------------
+// Leads
+// ---------------------------------------------------------------------------
+model Lead {
+  id        String @id @default(cuid())
+
+  firstName String
+  lastName  String
+  email     String?
+  phone     String?
+  city      String?
+  state     String?
+  zipCode   String?
+
+  serviceInterest String?
+  leadSource      LeadSource
+  formName        String
+  pipelineStage   PipelineStage @default(NEW)
+
+  ghlContactId     String?
+  ghlOpportunityId String?
+  ghlSyncStatus    GhlSyncStatus @default(NOT_SYNCED)
+  ghlLastSyncAt    DateTime?
+
+  consentGiven           Boolean   @default(false)
+  consentTimestamp       DateTime?
+  preferredContactMethod String?
+  preferredContactTime   String?
+  sourcePageUrl          String?
+  utmSource              String?
+  utmMedium              String?
+  utmCampaign            String?
+
+  soaRequired          Boolean   @default(false)
+  soaStatus            SoaStatus @default(NOT_REQUIRED)
+  soaCompletedAt       DateTime?
+  soaExternalReference String?
+
+  assignedToId    String?
+  assignedTo      User?     @relation("LeadAssignee", fields: [assignedToId], references: [id])
+  nextFollowUpAt  DateTime?
+  lastContactedAt DateTime?
+
+  closedStatus String?
+  closedReason String?
+
+  // Recruiting-only status (null for non-recruiting leads).
+  recruitingStatus RecruitingStatus?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  notes           LeadNote[]
+  callLogs        CallLog[]
+  emailLogs       EmailLog[]
+  followUpTasks   FollowUpTask[]
+  appointments    Appointment[]
+  formSubmissions FormSubmission[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([leadSource])
+  @@index([pipelineStage])
+  @@index([ghlContactId])
+  @@index([ghlOpportunityId])
+  @@index([ghlSyncStatus])
+  @@index([assignedToId])
+  @@index([createdAt])
+  @@index([nextFollowUpAt])
+}
+
+// Immutable capture of the sanitized submission. Blocked health-field NAMES only.
+model FormSubmission {
+  id               String     @id @default(cuid())
+  leadSource       LeadSource
+  leadId           String?
+  lead             Lead?      @relation(fields: [leadId], references: [id])
+  formName         String
+  sanitizedPayload Json
+  blockedFields    String[]   @default([])
+  ipAddress        String?
+  userAgent        String?
+  sourcePageUrl    String?
+  createdAt        DateTime   @default(now())
+
+  @@index([leadSource])
+  @@index([createdAt])
+}
+
+model LeadNote {
+  id                String   @id @default(cuid())
+  leadId            String
+  lead              Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  authorId          String
+  author            User     @relation(fields: [authorId], references: [id])
+  body              String
+  complianceFlagged Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  @@index([leadId])
+}
+
+model CallLog {
+  id                String      @id @default(cuid())
+  leadId            String
+  lead              Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  authorId          String
+  author            User        @relation(fields: [authorId], references: [id])
+  outcome           CallOutcome
+  followUpNeeded    Boolean     @default(false)
+  notes             String?
+  complianceFlagged Boolean     @default(false)
+  occurredAt        DateTime    @default(now())
+
+  @@index([leadId])
+}
+
+model EmailLog {
+  id                String   @id @default(cuid())
+  leadId            String
+  lead              Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  authorId          String?
+  author            User?    @relation(fields: [authorId], references: [id])
+  templateKey       String?
+  subject           String
+  body              String
+  direction         String   @default("outbound")
+  status            String   @default("sent")
+  providerMessageId String?
+  createdAt         DateTime @default(now())
+
+  @@index([leadId])
+}
+
+model FollowUpTask {
+  id           String     @id @default(cuid())
+  leadId       String?
+  lead         Lead?      @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  title        String
+  description  String?
+  createdById  String
+  createdBy    User       @relation("TaskCreator", fields: [createdById], references: [id])
+  assignedToId String?
+  assignedTo   User?      @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  dueAt        DateTime?
+  status       TaskStatus @default(OPEN)
+  completedAt  DateTime?
+  createdAt    DateTime   @default(now())
+
+  @@index([assignedToId])
+  @@index([status])
+  @@index([dueAt])
+}
+
+model Appointment {
+  id          String            @id @default(cuid())
+  leadId      String
+  lead        Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  serviceType String
+  scheduledAt DateTime
+  status      AppointmentStatus @default(SCHEDULED)
+  location    String?
+  notes       String?
+  createdAt   DateTime          @default(now())
+
+  @@index([scheduledAt])
+  @@index([serviceType])
+}
+
+// ---------------------------------------------------------------------------
+// Content, social, compliance
+// ---------------------------------------------------------------------------
+model ContentPost {
+  id               String        @id @default(cuid())
+  title            String
+  slug             String        @unique
+  excerpt          String?
+  body             String
+  category         String?
+  featuredImage    String?
+  seoTitle         String?
+  seoDescription   String?
+  socialCaption    String?
+  status           ContentStatus @default(DRAFT)
+  medicareSensitive Boolean      @default(false)
+  compliancePassed Boolean       @default(false)
+  complianceReport Json?
+  authorId         String
+  author           User          @relation("PostAuthor", fields: [authorId], references: [id])
+  reviewedById     String?
+  reviewedAt       DateTime?
+  publishedAt      DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  socialPosts SocialPost[]
+
+  @@index([status])
+  @@index([publishedAt])
+}
+
+model SocialPost {
+  id            String           @id @default(cuid())
+  contentPostId String
+  contentPost   ContentPost      @relation(fields: [contentPostId], references: [id], onDelete: Cascade)
+  platform      SocialPlatform
+  caption       String?
+  status        SocialPostStatus @default(PENDING)
+  scheduledAt   DateTime?
+  publishedAt   DateTime?
+  externalId    String?
+  error         String?
+  createdAt     DateTime         @default(now())
+
+  @@index([contentPostId])
+  @@index([platform])
+  @@index([status])
+}
+
+model ComplianceRule {
+  id        String   @id @default(cuid())
+  phrase    String
+  severity  String   @default("block") // block | warn
+  category  String   @default("general")
+  message   String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([category])
+}
+
+model DisclosureBlock {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  servicePage String
+  title       String
+  body        String
+  required    Boolean  @default(true)
+  isActive    Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Integrations, webhooks, settings, audit
+// ---------------------------------------------------------------------------
+model IntegrationLog {
+  id          String   @id @default(cuid())
+  provider    String // ghl | social | email
+  operation   String
+  status      String // success | failed | mock | skipped
+  relatedType String?
+  relatedId   String?
+  request     Json?
+  response    Json?
+  attempt     Int      @default(1)
+  durationMs  Int?
+  createdAt   DateTime @default(now())
+
+  @@index([provider])
+  @@index([status])
+  @@index([relatedType, relatedId])
+  @@index([createdAt])
+}
+
+model WebhookEvent {
+  id              String   @id @default(cuid())
+  provider        String   @default("ghl")
+  eventType       String
+  payload         Json
+  signatureValid  Boolean  @default(false)
+  processed       Boolean  @default(false)
+  processingError String?
+  createdAt       DateTime @default(now())
+
+  @@index([provider])
+  @@index([processed])
+}
+
+model Setting {
+  key         String   @id
+  value       String
+  isSecret    Boolean  @default(false)
+  category    String   @default("general")
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id])
+  action     String
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

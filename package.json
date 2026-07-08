@@ -1,0 +1,20 @@
+{
+  "name": "goldway-capital",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Goldway Capital — Senior Solutions platform. Next.js (public site + admin) + NestJS (API) + PostgreSQL.",
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/api & npm run dev --workspace=apps/web",
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=apps/api && npm run build --workspace=apps/web",
+    "db:generate": "npm run db:generate --workspace=apps/api",
+    "db:migrate": "npm run db:migrate --workspace=apps/api",
+    "db:seed": "npm run db:seed --workspace=apps/api",
+    "db:setup": "npm run db:setup --workspace=apps/api"
+  }
+}

@@ -1,0 +1,24 @@
+# Local PostgreSQL for Goldway Capital development.
+# Start:  docker compose up -d
+# Stop:   docker compose down   (add -v to also drop the data volume)
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: goldway-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: goldway
+      POSTGRES_PASSWORD: goldway
+      POSTGRES_DB: goldway
+    ports:
+      - "5433:5432"
+    volumes:
+      - goldway_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U goldway"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  goldway_pgdata:
