@@ -2,5 +2,11 @@
   command = "prisma generate && next build"
   publish = ".next"
 
+[build.environment]
+  # Server-side secrets live in Netlify Function bundles (not browser code),
+  # and the rest are public config (URLs, flags). Exclude them from the
+  # deploy secrets scanner to avoid false-positive build failures.
+  SECRETS_SCAN_OMIT_KEYS = "JWT_SECRET,SESSION_SECRET,LEAD_API_INGEST_KEY,EMAIL_PROVIDER,APP_URL,FROM_NAME,FROM_EMAIL,GHL_API_BASE_URL,CORS_ORIGINS,API_PORT,NEXT_PUBLIC_API_URL,NEXT_PUBLIC_APP_URL,WORDPRESS_STATUS_DEFAULT"
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
