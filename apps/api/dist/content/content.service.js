@@ -15,16 +15,18 @@ const prisma_service_1 = require("../prisma/prisma.service");
 const app_config_service_1 = require("../config/app-config.service");
 const compliance_service_1 = require("../compliance/compliance.service");
 const social_service_1 = require("../social/social.service");
+const wordpress_service_1 = require("../wordpress/wordpress.service");
 const audit_service_1 = require("../audit/audit.service");
 function slugify(s) {
     return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 60);
 }
 let ContentService = class ContentService {
-    constructor(prisma, config, compliance, social, audit) {
+    constructor(prisma, config, compliance, social, wordpress, audit) {
         this.prisma = prisma;
         this.config = config;
         this.compliance = compliance;
         this.social = social;
+        this.wordpress = wordpress;
         this.audit = audit;
     }
     list() {
@@ -98,7 +100,8 @@ let ContentService = class ContentService {
         await this.audit.log({ actorId: user.id, action: "content.approved", entityType: "contentPost", entityId: id });
         return { ok: true };
     }
-    async publish(id, platforms, user) {
+    async publish(id, dto, user) {
+        const platforms = dto.platforms ?? [];
         const post = await this.get(id);
         const report = await this.compliance.scanContent(post);
         if (!report.passed)
@@ -106,10 +109,11 @@ let ContentService = class ContentService {
         if (this.config.compliance.reviewRequired && post.status !== "APPROVED") {
             throw new common_1.ForbiddenException("Content must be Approved before publishing (review required).");
         }
-        const socialResults = platforms?.length ? await this.social.publish(id, platforms, post.socialCaption ?? post.title) : {};
+        const wordpressResult = dto.publishToWordpress ? await this.wordpress.publishResourceArticle(id, dto.wordpressStatus) : undefined;
+        const socialResults = platforms.length ? await this.social.publish(id, platforms, post.socialCaption ?? post.title) : {};
         const updated = await this.prisma.contentPost.update({ where: { id }, data: { status: "PUBLISHED", publishedAt: new Date() } });
-        await this.audit.log({ actorId: user.id, action: "content.published", entityType: "contentPost", entityId: id, metadata: { platforms, socialResults } });
-        return { post: updated, socialResults };
+        await this.audit.log({ actorId: user.id, action: "content.published", entityType: "contentPost", entityId: id, metadata: { platforms, socialResults, wordpress: !!dto.publishToWordpress } });
+        return { post: updated, socialResults, wordpressResult };
     }
     publishedList() {
         return this.prisma.contentPost.findMany({
@@ -132,6 +136,7 @@ exports.ContentService = ContentService = __decorate([
         app_config_service_1.AppConfigService,
         compliance_service_1.ComplianceService,
         social_service_1.SocialService,
+        wordpress_service_1.WordpressService,
         audit_service_1.AuditService])
 ], ContentService);
 //# sourceMappingURL=content.service.js.map

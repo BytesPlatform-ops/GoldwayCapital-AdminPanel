@@ -21,6 +21,8 @@ export function Composer({ existing }: { existing?: Existing }) {
     seoTitle: existing?.seoTitle ?? "", seoDescription: existing?.seoDescription ?? "", socialCaption: existing?.socialCaption ?? "",
   });
   const [platforms, setPlatforms] = useState<string[]>([]);
+  const [publishToWordpress, setPublishToWordpress] = useState(false);
+  const [wordpressStatus, setWordpressStatus] = useState<"draft" | "publish">("draft");
   const [report, setReport] = useState<Report | null>(null);
   const [msg, setMsg] = useState("");
 
@@ -39,7 +41,18 @@ export function Composer({ existing }: { existing?: Existing }) {
   }
   function submit() { if (!id) return setMsg("Save first."); start(async () => { await apiMutate(`/content/${id}/submit-review`, "POST"); setStatus("NEEDS_REVIEW"); setMsg("Submitted for review."); }); }
   function approve() { if (!id) return; start(async () => { const r = await apiMutate(`/content/${id}/approve`, "POST"); setMsg(r.ok ? "Approved." : r.data.message); if (r.ok) setStatus("APPROVED"); }); }
-  function publish() { if (!id) return; start(async () => { const r = await apiMutate(`/content/${id}/publish`, "POST", { platforms }); setMsg(r.ok ? "Published: " + JSON.stringify(r.data.socialResults) : r.data.message); if (r.ok) setStatus("PUBLISHED"); }); }
+  function publish() {
+    if (!id) return;
+    start(async () => {
+      const r = await apiMutate(`/content/${id}/publish`, "POST", { platforms, publishToWordpress, wordpressStatus });
+      if (r.ok) {
+        const wp = r.data.wordpressResult;
+        const wpMsg = wp ? ` · WordPress: ${wp.ok ? (wp.url || wp.status) : "failed — " + wp.error}` : "";
+        setMsg("Published: " + JSON.stringify(r.data.socialResults) + wpMsg);
+        setStatus("PUBLISHED");
+      } else setMsg(r.data.message);
+    });
+  }
 
   const blocking = report && !report.passed;
 
@@ -87,6 +100,23 @@ export function Composer({ existing }: { existing?: Existing }) {
               </label>
             ))}
           </div>
+          <div className="mt-4 border-t border-navy-50 pt-3">
+            <h3 className="mb-2 font-bold text-navy-800">Publish to WordPress</h3>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={publishToWordpress} onChange={(e) => setPublishToWordpress(e.target.checked)} />
+              Push this article to the WordPress site
+            </label>
+            {publishToWordpress && (
+              <label className="mt-2 block text-sm">
+                <span className="label">WordPress status</span>
+                <select className="input" value={wordpressStatus} onChange={(e) => setWordpressStatus(e.target.value as "draft" | "publish")}>
+                  <option value="draft">Draft</option>
+                  <option value="publish">Publish (live)</option>
+                </select>
+              </label>
+            )}
+          </div>
+
           <div className="mt-4 space-y-2">
             <button className="btn-primary w-full text-sm" onClick={save} disabled={pending}>Save</button>
             <button className="btn-ghost w-full text-sm" onClick={submit} disabled={pending || !id}>Submit for review</button>

@@ -37,9 +37,15 @@ export class SocialService {
       status = scheduledAt ? "SCHEDULED" : "PUBLISHED";
       externalId = `mock_${platform.toLowerCase()}_${Date.now().toString(36)}`;
     } else {
-      // Live path (GHL Social Planner / direct API) not yet configured for this account.
-      status = "FAILED";
-      error = "Live social publishing not yet configured for this account.";
+      // Live path — GHL Social Planner. One platform failing must not fail the batch.
+      try {
+        const res = await this.ghlSocialPost(platform, caption, scheduledAt);
+        externalId = res.externalId;
+        status = scheduledAt ? "SCHEDULED" : "PUBLISHED";
+      } catch (err) {
+        status = "FAILED";
+        error = err instanceof Error ? err.message : String(err);
+      }
     }
 
     await this.upsert(contentPostId, platform, caption, status, externalId, error, scheduledAt);
@@ -61,6 +67,55 @@ export class SocialService {
     if (!sp) return { ok: false };
     const [status] = Object.values(await this.publish(sp.contentPostId, [sp.platform], sp.caption ?? "", sp.scheduledAt?.toISOString()));
     return { ok: status !== "FAILED", status };
+  }
+
+  /** Status snapshot for the Integrations page. */
+  status() {
+    const a = this.config.social.accountIds;
+    return {
+      enabled: this.config.social.enabled,
+      mockMode: this.config.social.mockMode,
+      live: this.config.socialLive(),
+      ghlPlanner: this.config.social.ghlPlanner,
+      accountsConfigured: { FACEBOOK: !!a.FACEBOOK, INSTAGRAM: !!a.INSTAGRAM, LINKEDIN: !!a.LINKEDIN },
+      googleBusinessProfileConfigured: !!this.config.social.googleBusinessProfileId,
+    };
+  }
+
+  /** Connection test for the Integrations page: mock returns ok; live checks creds + accounts. */
+  async testConnection(): Promise<{ ok: boolean; live: boolean; detail: string }> {
+    const live = this.config.socialLive();
+    const started = Date.now();
+    if (!live) {
+      await this.logs.record({ provider: "social", operation: "testConnection", status: "mock", durationMs: Date.now() - started });
+      return { ok: true, live: false, detail: "Social publishing running in mock mode — no live request made." };
+    }
+    const configured = Object.values(this.config.social.accountIds).some(Boolean);
+    const detail = configured
+      ? "GHL token + location present and at least one social account id configured."
+      : "Live enabled but no social account ids configured — connect accounts in GHL and set their ids.";
+    await this.logs.record({ provider: "social", operation: "testConnection", status: configured ? "success" : "failed", response: { detail }, durationMs: Date.now() - started });
+    return { ok: configured, live: true, detail };
+  }
+
+  /** POST a single post to GHL Social Planner for one connected account. */
+  private async ghlSocialPost(platform: SocialPlatform, caption: string, scheduledAt?: string): Promise<{ externalId: string }> {
+    const accountId = this.config.social.accountIds[platform];
+    if (!accountId) throw new Error(`No connected ${platform} account id configured.`);
+    const { baseUrl, token, locationId } = this.config.ghl;
+    const res = await fetch(`${baseUrl}/social-media-posting/${locationId}/posts`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Version: "2021-07-28", Accept: "application/json" },
+      body: JSON.stringify({
+        accountIds: [accountId],
+        summary: caption,
+        type: scheduledAt ? "post" : "post",
+        ...(scheduledAt ? { scheduleDate: scheduledAt } : {}),
+      }),
+    });
+    if (!res.ok) throw new Error(`GHL social post ${platform} → ${res.status} ${(await res.text()).slice(0, 300)}`);
+    const data = (await res.json().catch(() => ({}))) as { id?: string; post?: { id?: string } };
+    return { externalId: data.post?.id ?? data.id ?? `ghl_${platform.toLowerCase()}` };
   }
 
   private async upsert(

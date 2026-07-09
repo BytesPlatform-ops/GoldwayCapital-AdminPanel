@@ -1,12 +1,13 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import type { Prisma, SocialPlatform } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { AppConfigService } from "../config/app-config.service";
 import { ComplianceService } from "../compliance/compliance.service";
 import { SocialService } from "../social/social.service";
+import { WordpressService } from "../wordpress/wordpress.service";
 import { AuditService } from "../audit/audit.service";
 import type { AuthUser } from "../auth/current-user.decorator";
-import { CreateContentDto, UpdateContentDto } from "./content.dto";
+import { CreateContentDto, PublishContentDto, UpdateContentDto } from "./content.dto";
 
 function slugify(s: string): string {
   return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 60);
@@ -19,6 +20,7 @@ export class ContentService {
     private readonly config: AppConfigService,
     private readonly compliance: ComplianceService,
     private readonly social: SocialService,
+    private readonly wordpress: WordpressService,
     private readonly audit: AuditService
   ) {}
 
@@ -96,7 +98,8 @@ export class ContentService {
     return { ok: true };
   }
 
-  async publish(id: string, platforms: SocialPlatform[], user: AuthUser) {
+  async publish(id: string, dto: PublishContentDto, user: AuthUser) {
+    const platforms = dto.platforms ?? [];
     const post = await this.get(id);
     const report = await this.compliance.scanContent(post);
     if (!report.passed) throw new BadRequestException("Blocked: content fails compliance. Fix flagged phrases first.");
@@ -104,13 +107,15 @@ export class ContentService {
       throw new ForbiddenException("Content must be Approved before publishing (review required).");
     }
 
-    // The Resource Center itself is served by Next.js reading PUBLISHED posts — so
-    // "publishing to the site" = marking PUBLISHED. Social fan-out is optional.
-    const socialResults = platforms?.length ? await this.social.publish(id, platforms, post.socialCaption ?? post.title) : {};
+    // The Next.js Resource Center serves PUBLISHED posts directly, so marking
+    // PUBLISHED always makes the article live on our own site. Pushing to the
+    // client's WordPress site and social fan-out are both optional/additive.
+    const wordpressResult = dto.publishToWordpress ? await this.wordpress.publishResourceArticle(id, dto.wordpressStatus) : undefined;
+    const socialResults = platforms.length ? await this.social.publish(id, platforms, post.socialCaption ?? post.title) : {};
 
     const updated = await this.prisma.contentPost.update({ where: { id }, data: { status: "PUBLISHED", publishedAt: new Date() } });
-    await this.audit.log({ actorId: user.id, action: "content.published", entityType: "contentPost", entityId: id, metadata: { platforms, socialResults } });
-    return { post: updated, socialResults };
+    await this.audit.log({ actorId: user.id, action: "content.published", entityType: "contentPost", entityId: id, metadata: { platforms, socialResults, wordpress: !!dto.publishToWordpress } });
+    return { post: updated, socialResults, wordpressResult };
   }
 
   // Public: published articles for the Next.js Resource Center.

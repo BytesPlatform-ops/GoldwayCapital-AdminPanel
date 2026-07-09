@@ -1,6 +1,6 @@
 import type { PipelineStage } from "@prisma/client";
 import type { AppConfigService } from "../config/app-config.service";
-import type { GhlAdapter, GhlContactInput, GhlContactResult, GhlOpportunityInput, GhlOpportunityResult, GhlResultBase } from "./ghl.types";
+import type { GhlAdapter, GhlContactInput, GhlContactResult, GhlOpportunityInput, GhlOpportunityResult, GhlPingResult, GhlResultBase } from "./ghl.types";
 
 /**
  * Live GHL adapter — GoHighLevel API v2 (LeadConnector). Exercised only when
@@ -33,6 +33,12 @@ export class GhlLiveAdapter implements GhlAdapter {
 
   private stageId(stage: PipelineStage): string {
     return this.config.ghl.stageIds[stage] || "";
+  }
+
+  async ping(): Promise<GhlPingResult> {
+    // Fetch the configured location — cheapest authenticated call, no writes.
+    await this.req(`/locations/${this.config.ghl.locationId}`, "GET");
+    return { ok: true, mock: false, detail: "Authenticated against GHL location." };
   }
 
   async upsertContact(input: GhlContactInput): Promise<GhlContactResult> {
@@ -73,6 +79,10 @@ export class GhlLiveAdapter implements GhlAdapter {
 
   async moveOpportunityStage(opportunityId: string, stage: PipelineStage): Promise<void> {
     await this.req(`/opportunities/${opportunityId}`, "PUT", { pipelineStageId: this.stageId(stage) });
+  }
+
+  async addContactToWorkflow(contactId: string, workflowId: string): Promise<void> {
+    await this.req(`/contacts/${contactId}/workflow/${workflowId}`, "POST", {});
   }
 
   async createTask(input: { contactId: string; title: string; body?: string; dueDate?: string }): Promise<GhlResultBase> {

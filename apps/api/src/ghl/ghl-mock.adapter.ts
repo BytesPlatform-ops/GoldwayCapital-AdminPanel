@@ -1,4 +1,4 @@
-import type { GhlAdapter, GhlContactInput, GhlContactResult, GhlOpportunityInput, GhlOpportunityResult, GhlResultBase } from "./ghl.types";
+import type { GhlAdapter, GhlContactInput, GhlContactResult, GhlOpportunityInput, GhlOpportunityResult, GhlPingResult, GhlResultBase } from "./ghl.types";
 
 /** Mock GHL — deterministic fake IDs, no network. Used when GHL is off/mock. */
 export class GhlMockAdapter implements GhlAdapter {
@@ -10,6 +10,9 @@ export class GhlMockAdapter implements GhlAdapter {
     return `mock_${prefix}_${Math.abs(h).toString(36)}`;
   }
 
+  async ping(): Promise<GhlPingResult> {
+    return { ok: true, mock: true, detail: "GHL running in mock mode — no live request made." };
+  }
   async upsertContact(input: GhlContactInput): Promise<GhlContactResult> {
     return { contactId: this.id("contact", input.email || input.phone || input.firstName + input.lastName), mock: true };
   }
@@ -18,6 +21,7 @@ export class GhlMockAdapter implements GhlAdapter {
     return { opportunityId: this.id("opp", input.contactId + input.stage), mock: true };
   }
   async moveOpportunityStage(): Promise<void> {}
+  async addContactToWorkflow(): Promise<void> {}
   async createTask(input: { contactId: string; title: string }): Promise<GhlResultBase> {
     return { id: this.id("task", input.contactId + input.title), mock: true };
   }

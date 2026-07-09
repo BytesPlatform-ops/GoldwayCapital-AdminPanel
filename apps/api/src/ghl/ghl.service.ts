@@ -23,13 +23,57 @@ export class GhlService {
   }
 
   status() {
+    const wf = this.config.ghl.workflowIds;
     return {
       enabled: this.config.ghl.enabled,
       mockMode: this.config.ghl.mockMode,
       live: this.config.ghlLive(),
+      tokenConfigured: !!this.config.ghl.token,
       locationConfigured: !!this.config.ghl.locationId,
       pipelineConfigured: !!this.config.ghl.pipelineId,
+      stagesConfigured: Object.values(this.config.ghl.stageIds).every((v) => !!v),
+      workflowsConfigured: Object.fromEntries(Object.entries(wf).map(([k, v]) => [k, !!v])),
+      assignedUsersConfigured: { owner: !!this.config.ghl.assignedUsers.owner, va: !!this.config.ghl.assignedUsers.va },
     };
+  }
+
+  /** Connection test for the Integrations page — mock returns ok, live pings the location. */
+  async testConnection(): Promise<{ ok: boolean; live: boolean; detail: string }> {
+    const adapter = this.adapter();
+    const started = Date.now();
+    try {
+      const r = await adapter.ping();
+      await this.logs.record({ provider: "ghl", operation: "testConnection", status: adapter.isLive ? "success" : "mock", response: { ...r }, durationMs: Date.now() - started });
+      return { ok: r.ok, live: adapter.isLive, detail: r.detail };
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      await this.logs.record({ provider: "ghl", operation: "testConnection", status: "failed", response: { detail }, durationMs: Date.now() - started });
+      return { ok: false, live: adapter.isLive, detail };
+    }
+  }
+
+  /** Sync a throwaway sample contact — proves the write path without persisting a Lead. */
+  async testSyncLead(): Promise<{ ok: boolean; live: boolean; contactId?: string; detail: string }> {
+    const adapter = this.adapter();
+    const started = Date.now();
+    try {
+      const contact = await this.logs.withRetry(() =>
+        adapter.upsertContact({
+          firstName: "Goldway",
+          lastName: "Integration Test",
+          email: "integration-test@goldwaycapital.test",
+          phone: null,
+          tags: ["Integration-Test"],
+          source: "Admin panel connection test",
+        })
+      );
+      await this.logs.record({ provider: "ghl", operation: "testSyncLead", status: contact.mock ? "mock" : "success", response: { contactId: contact.contactId }, durationMs: Date.now() - started });
+      return { ok: true, live: adapter.isLive, contactId: contact.contactId, detail: contact.mock ? "Mock contact created (no live request)." : "Test contact upserted in GHL." };
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      await this.logs.record({ provider: "ghl", operation: "testSyncLead", status: "failed", response: { detail }, durationMs: Date.now() - started });
+      return { ok: false, live: adapter.isLive, detail };
+    }
   }
 
   /**
@@ -78,6 +122,17 @@ export class GhlService {
           })
         );
         opportunityId = opp.opportunityId;
+      }
+
+      // Enroll the contact into the source-specific confirmation workflow (best-effort).
+      const workflowId = this.config.ghl.workflowIds[lead.leadSource];
+      if (workflowId) {
+        try {
+          await this.logs.withRetry(() => adapter.addContactToWorkflow(contact.contactId, workflowId));
+          await this.logs.record({ provider: "ghl", operation: "addContactToWorkflow", status: contact.mock ? "mock" : "success", relatedType: "lead", relatedId: lead.id, request: { workflowId } });
+        } catch (wfErr) {
+          await this.logs.record({ provider: "ghl", operation: "addContactToWorkflow", status: "failed", relatedType: "lead", relatedId: lead.id, request: { workflowId }, response: { error: String(wfErr) } });
+        }
       }
 
       const updated = await this.prisma.lead.update({

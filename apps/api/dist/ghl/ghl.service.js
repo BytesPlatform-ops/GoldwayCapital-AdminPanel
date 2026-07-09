@@ -28,13 +28,53 @@ let GhlService = class GhlService {
         return this.config.ghlLive() ? new ghl_live_adapter_1.GhlLiveAdapter(this.config) : new ghl_mock_adapter_1.GhlMockAdapter();
     }
     status() {
+        const wf = this.config.ghl.workflowIds;
         return {
             enabled: this.config.ghl.enabled,
             mockMode: this.config.ghl.mockMode,
             live: this.config.ghlLive(),
+            tokenConfigured: !!this.config.ghl.token,
             locationConfigured: !!this.config.ghl.locationId,
             pipelineConfigured: !!this.config.ghl.pipelineId,
+            stagesConfigured: Object.values(this.config.ghl.stageIds).every((v) => !!v),
+            workflowsConfigured: Object.fromEntries(Object.entries(wf).map(([k, v]) => [k, !!v])),
+            assignedUsersConfigured: { owner: !!this.config.ghl.assignedUsers.owner, va: !!this.config.ghl.assignedUsers.va },
         };
+    }
+    async testConnection() {
+        const adapter = this.adapter();
+        const started = Date.now();
+        try {
+            const r = await adapter.ping();
+            await this.logs.record({ provider: "ghl", operation: "testConnection", status: adapter.isLive ? "success" : "mock", response: { ...r }, durationMs: Date.now() - started });
+            return { ok: r.ok, live: adapter.isLive, detail: r.detail };
+        }
+        catch (err) {
+            const detail = err instanceof Error ? err.message : String(err);
+            await this.logs.record({ provider: "ghl", operation: "testConnection", status: "failed", response: { detail }, durationMs: Date.now() - started });
+            return { ok: false, live: adapter.isLive, detail };
+        }
+    }
+    async testSyncLead() {
+        const adapter = this.adapter();
+        const started = Date.now();
+        try {
+            const contact = await this.logs.withRetry(() => adapter.upsertContact({
+                firstName: "Goldway",
+                lastName: "Integration Test",
+                email: "integration-test@goldwaycapital.test",
+                phone: null,
+                tags: ["Integration-Test"],
+                source: "Admin panel connection test",
+            }));
+            await this.logs.record({ provider: "ghl", operation: "testSyncLead", status: contact.mock ? "mock" : "success", response: { contactId: contact.contactId }, durationMs: Date.now() - started });
+            return { ok: true, live: adapter.isLive, contactId: contact.contactId, detail: contact.mock ? "Mock contact created (no live request)." : "Test contact upserted in GHL." };
+        }
+        catch (err) {
+            const detail = err instanceof Error ? err.message : String(err);
+            await this.logs.record({ provider: "ghl", operation: "testSyncLead", status: "failed", response: { detail }, durationMs: Date.now() - started });
+            return { ok: false, live: adapter.isLive, detail };
+        }
     }
     async syncLead(leadId) {
         const lead = await this.prisma.lead.findUnique({ where: { id: leadId } });
@@ -72,6 +112,16 @@ let GhlService = class GhlService {
                     name: `${lead.firstName} ${lead.lastName} — ${def.label}`,
                 }));
                 opportunityId = opp.opportunityId;
+            }
+            const workflowId = this.config.ghl.workflowIds[lead.leadSource];
+            if (workflowId) {
+                try {
+                    await this.logs.withRetry(() => adapter.addContactToWorkflow(contact.contactId, workflowId));
+                    await this.logs.record({ provider: "ghl", operation: "addContactToWorkflow", status: contact.mock ? "mock" : "success", relatedType: "lead", relatedId: lead.id, request: { workflowId } });
+                }
+                catch (wfErr) {
+                    await this.logs.record({ provider: "ghl", operation: "addContactToWorkflow", status: "failed", relatedType: "lead", relatedId: lead.id, request: { workflowId }, response: { error: String(wfErr) } });
+                }
             }
             const updated = await this.prisma.lead.update({
                 where: { id: lead.id },

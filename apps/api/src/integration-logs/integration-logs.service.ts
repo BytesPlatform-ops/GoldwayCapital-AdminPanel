@@ -9,7 +9,7 @@ export class IntegrationLogsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async record(params: {
-    provider: "ghl" | "social" | "email";
+    provider: "ghl" | "social" | "email" | "wordpress";
     operation: string;
     status: "success" | "failed" | "mock" | "skipped";
     relatedType?: string;

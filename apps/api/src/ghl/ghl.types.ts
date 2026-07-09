@@ -17,13 +17,17 @@ export interface GhlOpportunityInput { contactId: string; pipelineId: string; st
 export interface GhlOpportunityResult { opportunityId: string; mock: boolean }
 export interface GhlResultBase { id: string; mock: boolean }
 
+export interface GhlPingResult { ok: boolean; mock: boolean; detail: string }
+
 /** The port every GHL implementation (mock or live) satisfies. */
 export interface GhlAdapter {
   readonly isLive: boolean;
+  ping(): Promise<GhlPingResult>;
   upsertContact(input: GhlContactInput): Promise<GhlContactResult>;
   applyTags(contactId: string, tags: string[]): Promise<void>;
   upsertOpportunity(input: GhlOpportunityInput): Promise<GhlOpportunityResult>;
   moveOpportunityStage(opportunityId: string, stage: PipelineStage): Promise<void>;
+  addContactToWorkflow(contactId: string, workflowId: string): Promise<void>;
   createTask(input: { contactId: string; title: string; body?: string; dueDate?: string }): Promise<GhlResultBase>;
   createNote(input: { contactId: string; body: string }): Promise<GhlResultBase>;
 }

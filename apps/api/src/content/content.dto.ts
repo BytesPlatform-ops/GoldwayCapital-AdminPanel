@@ -1,4 +1,4 @@
-import { IsArray, IsOptional, IsString, MaxLength } from "class-validator";
+import { IsArray, IsBoolean, IsIn, IsOptional, IsString, MaxLength } from "class-validator";
 import { SocialPlatform } from "@prisma/client";
 
 export class CreateContentDto {
@@ -20,4 +20,6 @@ export class UpdateContentDto extends CreateContentDto {
 
 export class PublishContentDto {
   @IsOptional() @IsArray() platforms?: SocialPlatform[];
+  @IsOptional() @IsBoolean() publishToWordpress?: boolean;
+  @IsOptional() @IsString() @IsIn(["draft", "publish"]) wordpressStatus?: "draft" | "publish";
 }

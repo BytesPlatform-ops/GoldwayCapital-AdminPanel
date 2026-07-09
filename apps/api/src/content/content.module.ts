@@ -54,7 +54,7 @@ class ContentController {
   }
   @RequirePermissions("content.publish") @Post(":id/publish")
   publish(@Param("id") id: string, @Body() dto: PublishContentDto, @CurrentUser() user: AuthUser) {
-    return this.content.publish(id, dto.platforms ?? [], user);
+    return this.content.publish(id, dto, user);
   }
 }
 

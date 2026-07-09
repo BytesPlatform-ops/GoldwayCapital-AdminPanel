@@ -5,7 +5,9 @@ import { AppConfigModule } from "./config/app-config.module";
 import { AuthModule } from "./auth/auth.module";
 import { ComplianceModule } from "./compliance/compliance.module";
 import { GhlModule } from "./ghl/ghl.module";
+import { WordpressModule } from "./wordpress/wordpress.module";
 import { EmailModule } from "./email/email.module";
+import { IntegrationsModule } from "./integrations/integrations.module";
 import { AuditModule } from "./audit/audit.module";
 import { IntegrationLogsModule } from "./integration-logs/integration-logs.module";
 import { FormsModule } from "./forms/forms.module";
@@ -30,6 +32,7 @@ import { MiscModule } from "./misc/misc.module";
     AuthModule,
     ComplianceModule,
     GhlModule,
+    WordpressModule,
     EmailModule,
     FormsModule,
     LeadsModule,
@@ -37,6 +40,7 @@ import { MiscModule } from "./misc/misc.module";
     PipelineModule,
     ContentModule,
     SocialModule,
+    IntegrationsModule,
     WebhooksModule,
     SettingsModule,
     LogsModule,

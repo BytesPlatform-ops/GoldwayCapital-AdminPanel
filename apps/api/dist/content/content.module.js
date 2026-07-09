@@ -72,7 +72,7 @@ let ContentController = class ContentController {
         return this.content.approve(id, user);
     }
     publish(id, dto, user) {
-        return this.content.publish(id, dto.platforms ?? [], user);
+        return this.content.publish(id, dto, user);
     }
 };
 __decorate([

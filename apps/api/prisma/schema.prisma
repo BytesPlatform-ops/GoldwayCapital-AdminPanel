@@ -336,6 +336,11 @@ model ContentPost {
   medicareSensitive Boolean      @default(false)
   compliancePassed Boolean       @default(false)
   complianceReport Json?
+
+  // WordPress mirror (populated when an article is published to the WP site).
+  wordpressPostId String?
+  wordpressUrl    String?
+  wordpressStatus String?
   authorId         String
   author           User          @relation("PostAuthor", fields: [authorId], references: [id])
   reviewedById     String?

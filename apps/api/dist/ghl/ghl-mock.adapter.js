@@ -11,6 +11,9 @@ class GhlMockAdapter {
             h = (h * 31 + seed.charCodeAt(i)) & 0xffffffff;
         return `mock_${prefix}_${Math.abs(h).toString(36)}`;
     }
+    async ping() {
+        return { ok: true, mock: true, detail: "GHL running in mock mode — no live request made." };
+    }
     async upsertContact(input) {
         return { contactId: this.id("contact", input.email || input.phone || input.firstName + input.lastName), mock: true };
     }
@@ -19,6 +22,7 @@ class GhlMockAdapter {
         return { opportunityId: this.id("opp", input.contactId + input.stage), mock: true };
     }
     async moveOpportunityStage() { }
+    async addContactToWorkflow() { }
     async createTask(input) {
         return { id: this.id("task", input.contactId + input.title), mock: true };
     }

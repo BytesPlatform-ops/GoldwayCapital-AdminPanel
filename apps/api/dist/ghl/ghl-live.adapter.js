@@ -27,6 +27,10 @@ class GhlLiveAdapter {
     stageId(stage) {
         return this.config.ghl.stageIds[stage] || "";
     }
+    async ping() {
+        await this.req(`/locations/${this.config.ghl.locationId}`, "GET");
+        return { ok: true, mock: false, detail: "Authenticated against GHL location." };
+    }
     async upsertContact(input) {
         const data = await this.req("/contacts/upsert", "POST", {
             locationId: this.config.ghl.locationId,
@@ -64,6 +68,9 @@ class GhlLiveAdapter {
     }
     async moveOpportunityStage(opportunityId, stage) {
         await this.req(`/opportunities/${opportunityId}`, "PUT", { pipelineStageId: this.stageId(stage) });
+    }
+    async addContactToWorkflow(contactId, workflowId) {
+        await this.req(`/contacts/${contactId}/workflow/${workflowId}`, "POST", {});
     }
     async createTask(input) {
         const data = await this.req(`/contacts/${input.contactId}/tasks`, "POST", {

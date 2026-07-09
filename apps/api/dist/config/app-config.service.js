@@ -34,11 +34,38 @@ let AppConfigService = class AppConfigService {
                 APPOINTMENT_SET: str(process.env.GHL_STAGE_APPOINTMENT_SET_ID),
                 CLOSED: str(process.env.GHL_STAGE_CLOSED_ID),
             },
+            workflowIds: {
+                MEDICARE: str(process.env.GHL_WORKFLOW_MEDICARE_CONFIRMATION_ID),
+                FINAL_EXPENSE: str(process.env.GHL_WORKFLOW_FINAL_EXPENSE_CONFIRMATION_ID),
+                REVERSE_MTG: str(process.env.GHL_WORKFLOW_REVERSE_MTG_CONFIRMATION_ID),
+                PROBATE: str(process.env.GHL_WORKFLOW_PROBATE_CONFIRMATION_ID),
+                RECRUITING: str(process.env.GHL_WORKFLOW_RECRUITING_CONFIRMATION_ID),
+            },
+            assignedUsers: {
+                owner: str(process.env.GHL_ASSIGNED_USER_OWNER_ID),
+                va: str(process.env.GHL_ASSIGNED_USER_VA_ID),
+            },
         };
         this.social = {
             enabled: bool(process.env.SOCIAL_PUBLISHING_ENABLED),
             mockMode: bool(process.env.SOCIAL_MOCK_MODE, true),
             ghlPlanner: bool(process.env.GHL_SOCIAL_PLANNER_ENABLED),
+            accountIds: {
+                FACEBOOK: str(process.env.GHL_SOCIAL_FACEBOOK_ACCOUNT_ID) || str(process.env.FACEBOOK_PAGE_ID),
+                INSTAGRAM: str(process.env.GHL_SOCIAL_INSTAGRAM_ACCOUNT_ID) || str(process.env.INSTAGRAM_ACCOUNT_ID),
+                LINKEDIN: str(process.env.GHL_SOCIAL_LINKEDIN_ACCOUNT_ID) || str(process.env.LINKEDIN_ORGANIZATION_ID),
+            },
+            googleBusinessProfileId: str(process.env.GHL_SOCIAL_GOOGLE_BUSINESS_PROFILE_ID),
+        };
+        this.wordpress = {
+            enabled: bool(process.env.WORDPRESS_ENABLED),
+            mockMode: bool(process.env.WORDPRESS_MOCK_MODE, true),
+            baseUrl: str(process.env.WORDPRESS_BASE_URL).replace(/\/+$/, ""),
+            username: str(process.env.WORDPRESS_USERNAME),
+            appPassword: str(process.env.WORDPRESS_APPLICATION_PASSWORD),
+            authorId: str(process.env.WORDPRESS_DEFAULT_AUTHOR_ID),
+            categoryId: str(process.env.WORDPRESS_RESOURCE_CATEGORY_ID),
+            statusDefault: str(process.env.WORDPRESS_STATUS_DEFAULT, "draft"),
         };
         this.email = {
             provider: str(process.env.EMAIL_PROVIDER, "mock"),
@@ -55,7 +82,14 @@ let AppConfigService = class AppConfigService {
         return this.ghl.enabled && !this.ghl.mockMode && !!this.ghl.token && !!this.ghl.locationId;
     }
     socialLive() {
-        return this.social.enabled && !this.social.mockMode;
+        return this.social.enabled && !this.social.mockMode && !!this.ghl.token && !!this.ghl.locationId;
+    }
+    wordpressLive() {
+        return (this.wordpress.enabled &&
+            !this.wordpress.mockMode &&
+            !!this.wordpress.baseUrl &&
+            !!this.wordpress.username &&
+            !!this.wordpress.appPassword);
     }
 };
 exports.AppConfigService = AppConfigService;

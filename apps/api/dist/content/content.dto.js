@@ -87,4 +87,15 @@ __decorate([
     (0, class_validator_1.IsArray)(),
     __metadata("design:type", Array)
 ], PublishContentDto.prototype, "platforms", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], PublishContentDto.prototype, "publishToWordpress", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsIn)(["draft", "publish"]),
+    __metadata("design:type", String)
+], PublishContentDto.prototype, "wordpressStatus", void 0);
 //# sourceMappingURL=content.dto.js.map
