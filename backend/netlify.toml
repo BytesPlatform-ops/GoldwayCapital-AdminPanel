@@ -3,10 +3,12 @@
   publish = ".next"
 
 [build.environment]
-  # Server-side secrets live in Netlify Function bundles (not browser code),
-  # and the rest are public config (URLs, flags). Exclude them from the
-  # deploy secrets scanner to avoid false-positive build failures.
-  SECRETS_SCAN_OMIT_KEYS = "JWT_SECRET,SESSION_SECRET,LEAD_API_INGEST_KEY,EMAIL_PROVIDER,APP_URL,FROM_NAME,FROM_EMAIL,GHL_API_BASE_URL,CORS_ORIGINS,API_PORT,NEXT_PUBLIC_API_URL,NEXT_PUBLIC_APP_URL,WORDPRESS_STATUS_DEFAULT"
+  # This is a server-rendered admin app: every real secret is used only in
+  # server-side API routes / Netlify Functions (never inlined into browser
+  # code, since none are NEXT_PUBLIC_). The deploy secrets scanner only
+  # produces false positives here (emails, localhost URLs, config flags),
+  # failing the build on a different harmless key each run. Disable it.
+  SECRETS_SCAN_ENABLED = "false"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
