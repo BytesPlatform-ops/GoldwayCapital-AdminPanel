@@ -1,12 +1,12 @@
 {
-  "name": "goldway-admin",
+  "name": "goldway-backend",
   "version": "0.1.0",
   "private": true,
-  "description": "Goldway Capital — single deployable Next.js app (public site + admin panel + API routes).",
+  "description": "Goldway Capital — backend: admin panel + API routes + integrations + database (Next.js).",
   "scripts": {
-    "dev": "next dev -p 3000",
+    "dev": "next dev -p 3001",
     "build": "prisma generate && next build",
-    "start": "next start -p 3000",
+    "start": "next start -p 3001",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "postinstall": "prisma generate",

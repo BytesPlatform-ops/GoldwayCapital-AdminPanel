@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { services } from "@/server/services";
+import { backendGet } from "@/lib/api";
 
 interface Article {
   id: string;
@@ -18,7 +18,7 @@ interface Article {
 
 async function getArticle(slug: string): Promise<Article | null> {
   try {
-    return (await services.content.publishedBySlug(slug)) as unknown as Article;
+    return await backendGet<Article>(`/api/public/resource-center/${slug}`);
   } catch {
     return null;
   }

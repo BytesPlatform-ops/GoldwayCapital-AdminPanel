@@ -1,5 +1,5 @@
 import { LeadForm } from "@/components/LeadForm";
-import { services } from "@/server/services";
+import { backendGet } from "@/lib/api";
 import type { ServicePage } from "@/lib/site";
 
 interface Disclosure {
@@ -11,7 +11,7 @@ interface Disclosure {
 
 async function getDisclosures(): Promise<Disclosure[]> {
   try {
-    return (await services.compliance.getDisclosures()) as unknown as Disclosure[];
+    return await backendGet<Disclosure[]>("/api/compliance/disclosures", 300);
   } catch {
     return [];
   }

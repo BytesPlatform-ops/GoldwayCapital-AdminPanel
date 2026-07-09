@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { services } from "@/server/services";
+import { backendGet } from "@/lib/api";
 
 export const metadata: Metadata = {
   title: "Resource Center",
@@ -19,7 +19,7 @@ interface Article {
 
 async function getArticles(): Promise<Article[]> {
   try {
-    return (await services.content.publishedList()) as unknown as Article[];
+    return await backendGet<Article[]>("/api/public/resource-center");
   } catch {
     return [];
   }
