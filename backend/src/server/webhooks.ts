@@ -49,7 +49,12 @@ export class WebhooksService {
   private mapStage(payload: any): any {
     const stageId = payload?.pipelineStageId ?? payload?.opportunity?.pipelineStageId;
     if (!stageId) return null;
-    const match = Object.entries(this.config.ghl.stageIds).find(([, id]) => id && id === String(stageId));
-    return match ? match[0] : null;
+    // Scan every vertical's stage map (plus the legacy single-pipeline map).
+    const maps = [...Object.values(this.config.ghl.pipelines).map((p) => p.stageIds), this.config.ghl.stageIds];
+    for (const stageIds of maps) {
+      const match = Object.entries(stageIds).find(([, id]) => id && id === String(stageId));
+      if (match) return match[0];
+    }
+    return null;
   }
 }

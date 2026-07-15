@@ -1,56 +1,64 @@
-# Goldway Capital — Backend (Admin Panel + API + Integrations)
+# Goldway Capital — Backend API
 
-All server-side work: the admin panel UI, every API route, CRM/GHL + WordPress +
-social + email integrations (mock/live), webhook handling, validation, and the
-database. The admin UI is served by this same app, so admin ↔ API is **same
-origin** — no cross-origin cookie problems.
+**API only** — no UI is served here. Deployed as **api.goldwaycapital.com**.
+Auth/JWT, admin APIs, the WordPress public lead-submit API, GHL integration,
+WordPress/social/email integrations (mock/live), webhooks, validation,
+compliance boundary enforcement, and the Prisma/PostgreSQL database.
 
-Built with Next.js (App Router) + Prisma (Supabase/PostgreSQL). Deploys standalone
-(Vercel, Render, Railway, any Node host).
+The admin panel UI lives in the separate `frontend/` app and calls this API
+cross-origin; the CORS middleware (`src/middleware.ts`) allows only
+`FRONTEND_ORIGIN` and `WORDPRESS_ORIGIN` (never a wildcard).
 
 ## Run
-
 ```bash
 npm install
-cp config/env.example .env      # fill DATABASE_URL, JWT_SECRET, integration creds
+cp .env.example .env            # fill DATABASE_URL, JWT_SECRET, integration creds
 npm run db:deploy               # apply migrations
 npm run db:seed                 # seed admin users (first time)
-npm run dev                     # http://localhost:3001  → /admin/login
+npm run dev                     # http://localhost:3001
 ```
 
 Deploy: `npm run build` → `npm run start`.
 
-## Requested structure → where it actually lives
+## API surface
+Public:
+- `POST /api/auth/login` · `GET /api/auth/me` · `POST /api/auth/logout`
+- `POST /api/public/leads/submit` — WordPress lead intake. Body carries
+  `formType` (`medicare | final-expense | reverse-mortgage | probate | recruiting`)
+  plus the lead fields; optional `x-goldway-key` shared-secret header
+  (`LEAD_API_INGEST_KEY`). Returns `{ ok, leadId, calendarLink }`.
+- `GET /api/public/resource-center[/:slug]`
+- `POST /api/webhooks/ghl`
 
-Next.js requires API routes under `src/app/api`, so the conceptual backend tree
-maps onto real files:
+Admin (session-guarded, all under `/api/admin/*`):
+- `GET /api/admin/dashboard/{summary,leads-by-source,recent-activity}`
+- `GET /api/admin/leads` · `GET /api/admin/leads/:id` · `PATCH /api/admin/leads/:id/stage`
+- `POST /api/admin/leads/:id/{notes,tasks,call-logs,appointments,email-logs}`
+- `GET /api/admin/pipelines` · `PATCH /api/admin/pipelines/leads/:id/move`
+- tasks, appointments, recruiting, content, compliance, social, settings, users,
+  audit-logs, integration-logs, `GET /api/admin/integrations/status` + test routes,
+  `POST /api/admin/ghl/{retry-failed,sync-lead/:id}`
 
-| Requested                  | Actual location |
-|----------------------------|-----------------|
-| `api/leads`, `api/forms`, `api/webhooks` | `src/app/api/leads`, `src/app/api/forms`, `src/app/api/webhooks` |
-| `api/crm`                  | `src/app/api/ghl`, `src/app/api/integrations` |
-| `integrations/gohighlevel` | `src/integrations/ghl` |
-| `integrations/wordpress`   | `src/integrations/wordpress` |
-| `integrations/email`       | `src/integrations/email` |
-| `database/schema` + `migrations` | `prisma/schema.prisma`, `prisma/migrations` |
-| `services/lead-routing`    | `src/server/leads.ts`, `src/server/forms.ts` |
-| `services/notifications`   | `src/integrations/email`, `src/server/*` |
-| `services/validation`      | `src/server/compliance.ts` (health-field blocking) + route input checks |
-| `config/env.example`       | `config/env.example` |
-| `logs/`                    | `logs/` |
-| backend utility functions  | `src/lib` (config, auth/session, errors, http, logger) |
+## Layout
+| Concern | Location |
+|---|---|
+| Route handlers | `src/app/api/{auth,public,admin,webhooks}` |
+| Services (business logic) | `src/server/*` |
+| GHL / WordPress / email / social | `src/integrations/*` |
+| DB client + schema/migrations | `src/db/prisma.ts`, `prisma/` |
+| Config, auth/session, errors, http | `src/lib/*` |
 
-## Key API endpoints
-Public (called by the frontend): `POST /api/forms/{medicare|final-expense|reverse-mortgage|probate|recruiting}`,
-`GET /api/public/resource-center[/:slug]`, `GET /api/compliance/disclosures`, `POST /api/webhooks/ghl`.
-Admin (session-guarded): leads, pipeline, dashboard, content, social, settings,
-logs, users, tasks, appointments, and `GET /api/integrations/status` +
-`POST /api/integrations/{wordpress,ghl,social}/test`.
+## GHL wiring
+Per-vertical pipelines and stages come from `GHL_PIPELINE_<SOURCE>_ID` /
+`GHL_STAGE_<SOURCE>_<STAGE>_ID` (legacy single-pipeline vars are the fallback).
+Contacts get the lowercase vertical tag (`GHL_TAG_*`), custom fields map via
+`GHL_CF_<NAME>_ID/_KEY`, and each vertical's booking link (`*_CALENDAR_LINK`) is
+returned to WordPress on submit.
 
 ## Integration modes
 `GHL_MOCK_MODE`, `WORDPRESS_MOCK_MODE`, `SOCIAL_MOCK_MODE` default to `true`
 (safe). Fill creds + flip the matching `*_ENABLED=true` / `*_MOCK_MODE=false` and
-use the Test buttons on `/admin/integrations` to go live.
+use the Test buttons on the frontend's Integrations page to go live.
 
 **Compliance:** no health, medical, prescription, coverage, or enrollment data is
 stored — health-named fields are stripped at the boundary.

@@ -1,4 +1,3 @@
-import type { PipelineStage } from "@prisma/client";
 import type { AppConfigService } from "@/lib/config";
 import type { GhlAdapter, GhlContactInput, GhlContactResult, GhlOpportunityInput, GhlOpportunityResult, GhlPingResult, GhlResultBase } from "./ghl.types";
 
@@ -31,8 +30,13 @@ export class GhlLiveAdapter implements GhlAdapter {
     return (await res.json().catch(() => ({}))) as T;
   }
 
-  private stageId(stage: PipelineStage): string {
-    return this.config.ghl.stageIds[stage] || "";
+  /** Our payload keys → GHL custom-field ids, from the GHL_CF_*_ID/_KEY env pairs. */
+  private customFields(input?: Record<string, string | number | boolean | null>) {
+    if (!input) return undefined;
+    const fields = Object.entries(input)
+      .map(([key, value]) => ({ id: this.config.ghl.customFieldIds[key], key, field_value: String(value ?? "") }))
+      .filter((f) => !!f.id);
+    return fields.length ? fields : undefined;
   }
 
   async ping(): Promise<GhlPingResult> {
@@ -53,6 +57,7 @@ export class GhlLiveAdapter implements GhlAdapter {
       postalCode: input.postalCode || undefined,
       tags: input.tags,
       source: input.source || "Website",
+      customFields: this.customFields(input.customFields),
     });
     const contactId = data.contact?.id ?? data.id;
     if (!contactId) throw new Error("GHL upsertContact: no id returned");
@@ -67,7 +72,7 @@ export class GhlLiveAdapter implements GhlAdapter {
     const data = await this.req<{ opportunity?: { id: string }; id?: string }>("/opportunities/", "POST", {
       locationId: this.config.ghl.locationId,
       pipelineId: input.pipelineId,
-      pipelineStageId: this.stageId(input.stage),
+      pipelineStageId: input.pipelineStageId,
       contactId: input.contactId,
       name: input.name,
       status: "open",
@@ -77,8 +82,8 @@ export class GhlLiveAdapter implements GhlAdapter {
     return { opportunityId, mock: false };
   }
 
-  async moveOpportunityStage(opportunityId: string, stage: PipelineStage): Promise<void> {
-    await this.req(`/opportunities/${opportunityId}`, "PUT", { pipelineStageId: this.stageId(stage) });
+  async moveOpportunityStage(opportunityId: string, pipelineStageId: string): Promise<void> {
+    await this.req(`/opportunities/${opportunityId}`, "PUT", { pipelineStageId });
   }
 
   async addContactToWorkflow(contactId: string, workflowId: string): Promise<void> {

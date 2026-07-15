@@ -10,7 +10,7 @@ export class SettingsService {
     return {
       settings,
       integrations: {
-        ghl: { enabled: this.config.ghl.enabled, mockMode: this.config.ghl.mockMode, live: this.config.ghlLive(), tokenConfigured: !!this.config.ghl.token, locationConfigured: !!this.config.ghl.locationId, pipelineConfigured: !!this.config.ghl.pipelineId },
+        ghl: { enabled: this.config.ghl.enabled, mockMode: this.config.ghl.mockMode, live: this.config.ghlLive(), tokenConfigured: !!this.config.ghl.token, locationConfigured: !!this.config.ghl.locationId, pipelineConfigured: Object.values(this.config.ghl.pipelines).every((p) => !!p.pipelineId) },
         social: { enabled: this.config.social.enabled, mockMode: this.config.social.mockMode, live: this.config.socialLive() },
         wordpress: { enabled: this.config.wordpress.enabled, mockMode: this.config.wordpress.mockMode, live: this.config.wordpressLive() },
         email: { provider: this.config.email.provider, sharedMailbox: this.config.email.sharedMailbox },

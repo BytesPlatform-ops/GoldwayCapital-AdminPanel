@@ -29,8 +29,10 @@ export class GhlService {
       live: this.config.ghlLive(),
       tokenConfigured: !!this.config.ghl.token,
       locationConfigured: !!this.config.ghl.locationId,
-      pipelineConfigured: !!this.config.ghl.pipelineId,
-      stagesConfigured: Object.values(this.config.ghl.stageIds).every((v) => !!v),
+      // Aggregate booleans: every vertical has a pipeline id / all 4 stage ids.
+      pipelineConfigured: Object.values(this.config.ghl.pipelines).every((p) => !!p.pipelineId),
+      stagesConfigured: Object.values(this.config.ghl.pipelines).every((p) => Object.values(p.stageIds).every((v) => !!v)),
+      pipelinesConfigured: Object.fromEntries(Object.entries(this.config.ghl.pipelines).map(([s, p]) => [s, !!p.pipelineId])),
       workflowsConfigured: Object.fromEntries(Object.entries(wf).map(([k, v]) => [k, !!v])),
       assignedUsersConfigured: { owner: !!this.config.ghl.assignedUsers.owner, va: !!this.config.ghl.assignedUsers.va },
     };
@@ -84,6 +86,8 @@ export class GhlService {
     if (!lead) return null;
     const adapter = this.adapter();
     const def = leadSourceDef(lead.leadSource);
+    const tag = this.config.ghl.tags[lead.leadSource] ?? def.ghlTag;
+    const pipeline = this.config.ghlPipelineFor(lead.leadSource);
     const started = Date.now();
 
     try {
@@ -96,7 +100,7 @@ export class GhlService {
           city: lead.city,
           state: lead.state,
           postalCode: lead.zipCode,
-          tags: [def.ghlTag],
+          tags: [tag],
           source: def.label,
           customFields: {
             service_interest: lead.serviceInterest ?? "",
@@ -108,14 +112,15 @@ export class GhlService {
         })
       );
 
-      await this.logs.withRetry(() => adapter.applyTags(contact.contactId, [def.ghlTag]));
+      await this.logs.withRetry(() => adapter.applyTags(contact.contactId, [tag]));
 
       let opportunityId = lead.ghlOpportunityId ?? undefined;
-      if (this.config.ghl.pipelineId || !adapter.isLive) {
+      if (pipeline.pipelineId || !adapter.isLive) {
         const opp = await this.logs.withRetry(() =>
           adapter.upsertOpportunity({
             contactId: contact.contactId,
-            pipelineId: this.config.ghl.pipelineId,
+            pipelineId: pipeline.pipelineId,
+            pipelineStageId: pipeline.stageIds[lead.pipelineStage] || "",
             stage: lead.pipelineStage,
             name: `${lead.firstName} ${lead.lastName} — ${def.label}`,
           })
@@ -179,9 +184,10 @@ export class GhlService {
       return !!synced && synced.ghlSyncStatus !== "FAILED";
     }
     const adapter = this.adapter();
+    const stageId = this.config.ghlPipelineFor(lead.leadSource).stageIds[stage] || "";
     const started = Date.now();
     try {
-      await this.logs.withRetry(() => adapter.moveOpportunityStage(lead.ghlOpportunityId!, stage));
+      await this.logs.withRetry(() => adapter.moveOpportunityStage(lead.ghlOpportunityId!, stageId));
       await this.prisma.lead.update({
         where: { id: leadId },
         data: { ghlSyncStatus: adapter.isLive ? "SYNCED" : "SYNCED_MOCK", ghlLastSyncAt: new Date() },

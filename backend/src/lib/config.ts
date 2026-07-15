@@ -7,10 +7,41 @@ function str(v: string | undefined, def = ""): string {
   return v ?? def;
 }
 
+// Lead verticals and pipeline stages — mirror the LeadSource / PipelineStage enums.
+const GHL_SOURCES = ["MEDICARE", "FINAL_EXPENSE", "REVERSE_MTG", "PROBATE", "RECRUITING"] as const;
+const GHL_STAGES = ["NEW", "CONTACTED", "APPOINTMENT_SET", "CLOSED"] as const;
+
+// GHL tags are lowercase by convention; GHL_TAG_<SOURCE> env vars override.
+const DEFAULT_GHL_TAGS: Record<string, string> = {
+  MEDICARE: "medicare",
+  FINAL_EXPENSE: "final-expense",
+  REVERSE_MTG: "reverse-mtg",
+  PROBATE: "probate",
+  RECRUITING: "recruiting",
+};
+
+const CALENDAR_LINK_ENV: Record<string, string> = {
+  MEDICARE: "MEDICARE_CALENDAR_LINK",
+  FINAL_EXPENSE: "FINAL_EXPENSE_CALENDAR_LINK",
+  REVERSE_MTG: "REVERSE_MORTGAGE_CALENDAR_LINK",
+  PROBATE: "PROBATE_CALENDAR_LINK",
+  RECRUITING: "RECRUITING_CALENDAR_LINK",
+};
+
+export interface GhlPipelineConfig {
+  pipelineId: string;
+  stageIds: Record<string, string>;
+}
+
 /** Typed, centralized environment access. Nothing hardcoded elsewhere. */
 export class AppConfigService {
   readonly jwtSecret = str(process.env.JWT_SECRET, "dev-insecure-jwt-secret-change-me-please-32bytes");
+  readonly cookieSecret = str(process.env.COOKIE_SECRET);
   readonly leadApiIngestKey = str(process.env.LEAD_API_INGEST_KEY);
+
+  // Browser origins allowed by the CORS middleware (see src/middleware.ts).
+  readonly frontendOrigin = str(process.env.FRONTEND_ORIGIN, "http://localhost:3000");
+  readonly wordpressOrigin = str(process.env.WORDPRESS_ORIGIN, "https://goldwaycapital.com");
 
   readonly ghl = {
     enabled: bool(process.env.GHL_ENABLED),
@@ -26,6 +57,33 @@ export class AppConfigService {
       APPOINTMENT_SET: str(process.env.GHL_STAGE_APPOINTMENT_SET_ID),
       CLOSED: str(process.env.GHL_STAGE_CLOSED_ID),
     } as Record<string, string>,
+    // Per-vertical pipelines: GHL_PIPELINE_<SOURCE>_ID + GHL_STAGE_<SOURCE>_<STAGE>_ID.
+    // Each falls back to the legacy single-pipeline vars above when unset.
+    pipelines: Object.fromEntries(
+      GHL_SOURCES.map((s) => [
+        s,
+        {
+          pipelineId: str(process.env[`GHL_PIPELINE_${s}_ID`]) || str(process.env.GHL_PIPELINE_ID),
+          stageIds: Object.fromEntries(
+            GHL_STAGES.map((st) => [st, str(process.env[`GHL_STAGE_${s}_${st}_ID`]) || str(process.env[`GHL_STAGE_${st}_ID`])])
+          ),
+        },
+      ])
+    ) as Record<string, GhlPipelineConfig>,
+    // Contact tags applied per vertical (lowercase). GHL_TAG_<SOURCE> overrides.
+    tags: Object.fromEntries(GHL_SOURCES.map((s) => [s, str(process.env[`GHL_TAG_${s}`], DEFAULT_GHL_TAGS[s])])) as Record<string, string>,
+    // GHL custom-field ids: GHL_CF_<NAME>_ID holds the field id; the optional
+    // GHL_CF_<NAME>_KEY holds our payload key (defaults to lowercased <NAME>).
+    customFieldIds: (() => {
+      const map: Record<string, string> = {};
+      for (const [name, value] of Object.entries(process.env)) {
+        const m = name.match(/^GHL_CF_(.+)_ID$/);
+        if (!m || !value) continue;
+        const key = str(process.env[`GHL_CF_${m[1]}_KEY`]) || m[1].toLowerCase();
+        map[key] = value;
+      }
+      return map;
+    })(),
     // Confirmation workflow to enroll a new contact into, keyed by LeadSource enum.
     workflowIds: {
       MEDICARE: str(process.env.GHL_WORKFLOW_MEDICARE_CONFIRMATION_ID),
@@ -76,6 +134,16 @@ export class AppConfigService {
     reviewRequired: bool(process.env.COMPLIANCE_REVIEW_REQUIRED, true),
     blockHealthFields: bool(process.env.BLOCK_HEALTH_INFO_FIELDS, true),
   };
+
+  // Booking link returned to the WordPress site after a successful lead submit.
+  readonly calendarLinks = Object.fromEntries(
+    GHL_SOURCES.map((s) => [s, str(process.env[CALENDAR_LINK_ENV[s]])])
+  ) as Record<string, string>;
+
+  /** Pipeline + stage ids for a lead source, with the legacy single-pipeline fallback. */
+  ghlPipelineFor(source: string): GhlPipelineConfig {
+    return this.ghl.pipelines[source] ?? { pipelineId: this.ghl.pipelineId, stageIds: this.ghl.stageIds };
+  }
 
   /** GHL should make real API calls only when fully configured and not mocked. */
   ghlLive(): boolean {

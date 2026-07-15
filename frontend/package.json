@@ -1,8 +1,8 @@
 {
-  "name": "goldway-frontend",
+  "name": "goldway-admin-frontend",
   "version": "0.1.0",
   "private": true,
-  "description": "Goldway Capital — public marketing website (Next.js). Talks to the backend API server-side only.",
+  "description": "Goldway Capital — admin panel UI (Next.js). No database, no secrets; talks only to the backend API via NEXT_PUBLIC_API_URL.",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",

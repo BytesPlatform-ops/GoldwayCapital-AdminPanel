@@ -13,7 +13,7 @@ export interface GhlContactInput {
   customFields?: Record<string, string | number | boolean | null>;
 }
 export interface GhlContactResult { contactId: string; mock: boolean }
-export interface GhlOpportunityInput { contactId: string; pipelineId: string; stage: PipelineStage; name: string }
+export interface GhlOpportunityInput { contactId: string; pipelineId: string; pipelineStageId: string; stage: PipelineStage; name: string }
 export interface GhlOpportunityResult { opportunityId: string; mock: boolean }
 export interface GhlResultBase { id: string; mock: boolean }
 
@@ -26,7 +26,7 @@ export interface GhlAdapter {
   upsertContact(input: GhlContactInput): Promise<GhlContactResult>;
   applyTags(contactId: string, tags: string[]): Promise<void>;
   upsertOpportunity(input: GhlOpportunityInput): Promise<GhlOpportunityResult>;
-  moveOpportunityStage(opportunityId: string, stage: PipelineStage): Promise<void>;
+  moveOpportunityStage(opportunityId: string, pipelineStageId: string): Promise<void>;
   addContactToWorkflow(contactId: string, workflowId: string): Promise<void>;
   createTask(input: { contactId: string; title: string; body?: string; dueDate?: string }): Promise<GhlResultBase>;
   createNote(input: { contactId: string; body: string }): Promise<GhlResultBase>;

@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import jwt from "jsonwebtoken";
 import { config } from "@/lib/config";
 import { roleHasPermission, type Permission } from "@/lib/constants";
@@ -25,9 +25,10 @@ export function verifyToken(token: string): AuthUser | null {
   }
 }
 
-/** Current user from the httpOnly session cookie, or null. */
+/** Current user from the httpOnly session cookie or an Authorization: Bearer header. */
 export function getSessionUser(): AuthUser | null {
-  const token = cookies().get(SESSION_COOKIE)?.value;
+  const bearer = headers().get("authorization")?.match(/^Bearer (.+)$/i)?.[1];
+  const token = cookies().get(SESSION_COOKIE)?.value ?? bearer;
   return token ? verifyToken(token) : null;
 }
 

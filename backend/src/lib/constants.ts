@@ -13,11 +13,11 @@ export interface LeadSourceDef {
 }
 
 export const LEAD_SOURCE_DEFS: LeadSourceDef[] = [
-  { source: "MEDICARE", key: "medicare", label: "Medicare", ghlTag: "Medicare", formName: "Medicare Consultation Request", serviceInterest: "Medicare Solutions", isMedicare: true, isRecruiting: false },
-  { source: "FINAL_EXPENSE", key: "final-expense", label: "Final Expense", ghlTag: "Final-Expense", formName: "Final Expense Inquiry", serviceInterest: "Final Expense", isMedicare: false, isRecruiting: false },
-  { source: "REVERSE_MTG", key: "reverse-mortgage", label: "Reverse Mortgage", ghlTag: "Reverse-Mtg", formName: "Reverse Mortgage Inquiry", serviceInterest: "Reverse Mortgage Solutions", isMedicare: false, isRecruiting: false },
-  { source: "PROBATE", key: "probate", label: "Probate / Senior Real Estate", ghlTag: "Probate", formName: "Senior Real Estate & Probate Inquiry", serviceInterest: "Senior Real Estate & Probate Solutions", isMedicare: false, isRecruiting: false },
-  { source: "RECRUITING", key: "recruiting", label: "Join Our Team", ghlTag: "Recruiting", formName: "Medicare Agent Opportunities", serviceInterest: "Recruiting", isMedicare: false, isRecruiting: true },
+  { source: "MEDICARE", key: "medicare", label: "Medicare", ghlTag: "medicare", formName: "Medicare Consultation Request", serviceInterest: "Medicare Solutions", isMedicare: true, isRecruiting: false },
+  { source: "FINAL_EXPENSE", key: "final-expense", label: "Final Expense", ghlTag: "final-expense", formName: "Final Expense Inquiry", serviceInterest: "Final Expense", isMedicare: false, isRecruiting: false },
+  { source: "REVERSE_MTG", key: "reverse-mortgage", label: "Reverse Mortgage", ghlTag: "reverse-mtg", formName: "Reverse Mortgage Inquiry", serviceInterest: "Reverse Mortgage Solutions", isMedicare: false, isRecruiting: false },
+  { source: "PROBATE", key: "probate", label: "Probate / Senior Real Estate", ghlTag: "probate", formName: "Senior Real Estate & Probate Inquiry", serviceInterest: "Senior Real Estate & Probate Solutions", isMedicare: false, isRecruiting: false },
+  { source: "RECRUITING", key: "recruiting", label: "Join Our Team", ghlTag: "recruiting", formName: "Medicare Agent Opportunities", serviceInterest: "Recruiting", isMedicare: false, isRecruiting: true },
 ];
 
 export function leadSourceByPath(key: string): LeadSourceDef | undefined {

@@ -1,48 +1,37 @@
-# Goldway Capital — Frontend (Public Website)
+# Goldway Capital — Admin Panel Frontend
 
-Public marketing website. **UI only** — no secrets, no CRM/DB logic. It reads
-published content and disclosures from the backend **server-side** and forwards
-lead submissions to the backend through a server proxy (so the shared ingest key
-never reaches the browser). Because every backend call is server-to-server there
-is **no CORS and no cross-origin cookie handling**.
+Admin UI only (Next.js App Router + Tailwind), deployed as
+**admin.goldwaycapital.com**. The public website is WordPress and is not part of
+this app.
 
-Built with Next.js (App Router) + Tailwind. Deploys standalone (e.g. Vercel).
+**This app has no database, no Prisma, no GHL code, and no secrets.** Every data
+call goes to the backend API (api.goldwaycapital.com) through the single client
+in `src/lib/api.ts`, using the `NEXT_PUBLIC_API_URL` env var.
 
-## Run
-
-```bash
-npm install
-cp .env.example .env.local     # set BACKEND_API_URL + LEAD_API_INGEST_KEY
-npm run dev                    # http://localhost:3000  (backend must be on :3001)
+## Routes
+```
+/admin/login        sign in (calls POST {api}/api/auth/login)
+/admin/dashboard    stats + recent submissions
+/admin/leads        lead inbox · /admin/leads/[id] detail
+/admin/pipeline     kanban board (stage moves sync to GHL via the backend)
+/admin/tasks        follow-up tasks
+/admin/settings     settings + integration status
+...plus appointments, recruiting, content, compliance, integrations, audit/integration logs
 ```
 
-Deploy: `npm run build` → `npm run start` (or Vercel).
+## Auth
+`loginAction` (`src/lib/actions.ts`) posts credentials to the backend and stores
+the returned JWT in an httpOnly cookie on this domain. Server components forward
+that cookie to the backend on every request; session validity is always checked
+by the backend (`GET /api/auth/me` via `src/lib/auth.ts`). Middleware redirects
+cookie-less visitors to `/admin/login`.
 
-## Requested structure → where it actually lives
+## Run
+```bash
+npm install
+cp .env.example .env.local   # set NEXT_PUBLIC_API_URL (local backend: http://localhost:3001)
+npm run dev                  # http://localhost:3000/admin/login
+```
 
-Next.js dictates the `src/app` routing folder, so the conceptual layout you asked
-for maps onto real files like this:
-
-| Requested            | Actual location                                   | Purpose |
-|----------------------|---------------------------------------------------|---------|
-| `assets/css`         | `src/app/globals.css` + `tailwind.config.ts`      | styling |
-| `assets/js`          | compiled from React components by Next            | scripts |
-| `assets/images` / `videos` | `public/images`, `public/videos`            | static media |
-| `components/header`, `footer` | `src/components/PublicChrome.tsx`        | site header + footer |
-| `components/sections`| `src/components/ServicePageView.tsx`              | page sections |
-| `components/forms`   | `src/components/LeadForm.tsx`                      | lead form UI |
-| `components/carousel`| add under `src/components/` when built            | carousels/video |
-| `pages/*`            | `src/app/*/page.tsx` (home, contact, service pages, resource-center) | routes |
-| `theme/templates` / `parts` | `src/app/layout.tsx` (root chrome)         | page shell |
-
-## Pages
-`/` (home) · `/medicare-solutions` · `/reverse-mortgage-solutions` ·
-`/senior-real-estate-probate-solutions` · `/medicare-agent-opportunities` ·
-`/resource-center` (+ `/resource-center/[slug]`) · `/contact` · `/privacy-policy` · `/terms`
-
-## Talking to the backend
-- `src/lib/api.ts` → `backendGet()` reads `BACKEND_API_URL` (server-side).
-- `src/app/api/lead/route.ts` → proxies form posts to `POST {backend}/api/forms/{source}`
-  with the `x-goldway-key` ingest header.
-
-No health/medical/coverage data is ever collected or forwarded.
+Deploy: `npm run build` → `npm run start` (or Netlify/Vercel) with
+`NEXT_PUBLIC_API_URL=https://api.goldwaycapital.com`.

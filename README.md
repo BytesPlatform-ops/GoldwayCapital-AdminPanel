@@ -1,40 +1,52 @@
-# Goldway Capital
+# Goldway Capital — Admin Panel
 
 Two independently-deployable apps. **The repo root has no code, no `package.json`,
-and no `.env`** — each app is fully self-contained.
+and no `.env`** — each app is fully self-contained. The public website is
+**WordPress** (goldwaycapital.com) and does not live in this repo.
 
 ```
-frontend/   Public marketing website (Next.js, UI only) — deploy to Vercel
-backend/    Admin panel + API + integrations + database (Next.js + Prisma) — deploy to any Node host
+frontend/   Admin panel UI (Next.js) — admin.goldwaycapital.com
+backend/    API only: auth, admin APIs, lead intake, GHL, Prisma DB, webhooks — api.goldwaycapital.com
 docs/       Project docs
 ```
 
-## How they connect
-The frontend never talks to the database or CRM directly. It calls the backend
-**server-side only**:
-- reads published articles / disclosures via `BACKEND_API_URL`
-- forwards lead form posts through its own `/api/lead` proxy, which adds the
-  shared `LEAD_API_INGEST_KEY` and calls `POST {backend}/api/forms/{source}`
+## Final architecture
+| Piece | Role |
+|---|---|
+| goldwaycapital.com (WordPress) | Public website, marketing pages, public lead forms |
+| admin.goldwaycapital.com (`frontend/`) | Admin login, dashboard, leads, pipeline, tasks, settings |
+| api.goldwaycapital.com (`backend/`) | Auth, admin APIs, WordPress lead submit API, GHL integration, DB, webhooks |
+| GHL | CRM engine: contacts, opportunities, tags, pipelines, workflows, calendars |
+| PostgreSQL (Prisma, backend only) | Admin users, lead mirror, submissions, notes, tasks, logs, sync records |
 
-Because all cross-app calls are server-to-server, there is **no CORS setup and no
-cross-origin cookie handling**. The authenticated admin panel lives inside
-`backend/`, so admin ↔ API is same-origin.
+## How they connect
+- The frontend holds **no secrets, no Prisma, no GHL code**. Every data call goes
+  to the backend via `NEXT_PUBLIC_API_URL` (one client: `frontend/src/lib/api.ts`).
+- Login: frontend posts to `POST {api}/api/auth/login`, stores the returned JWT in
+  an httpOnly cookie, and checks sessions via `GET {api}/api/auth/me`.
+- WordPress forms post to `POST {api}/api/public/leads/submit` with a `formType`
+  (`medicare | final-expense | reverse-mortgage | probate | recruiting`) and get
+  back the vertical's calendar booking link.
+- Backend routes: `/api/auth/*` (public), `/api/public/leads/submit` (public),
+  `/api/webhooks/ghl` (public), `/api/admin/*` (session-protected).
+- CORS: the backend allows only `FRONTEND_ORIGIN` and `WORDPRESS_ORIGIN` — no wildcard.
 
 ## Local development
 ```bash
-# terminal 1 — backend on :3001
-cd backend && npm install && cp config/env.example .env && npm run dev
+# terminal 1 — backend API on :3001
+cd backend && npm install && cp .env.example .env && npm run db:setup && npm run dev
 
-# terminal 2 — frontend on :3000
+# terminal 2 — admin frontend on :3000
 cd frontend && npm install && cp .env.example .env.local && npm run dev
+# set NEXT_PUBLIC_API_URL=http://localhost:3001 in frontend/.env.local
 ```
-Set `frontend` `BACKEND_API_URL=http://localhost:3001` and use the **same**
-`LEAD_API_INGEST_KEY` in both.
+
+Open http://localhost:3000/admin/login (seed login: `owner@goldwaycapital.com` / `Goldway#2026` — change it).
 
 ## Deploy (separately)
-| App | Command | Notes |
-|-----|---------|-------|
-| backend  | `npm install && npm run build && npm run start` | needs `DATABASE_URL`, `JWT_SECRET`, integration creds |
-| frontend | `npm install && npm run build && npm run start` | needs `BACKEND_API_URL`, `LEAD_API_INGEST_KEY` |
+| App | Domain | Command | Notes |
+|-----|--------|---------|-------|
+| frontend | admin.goldwaycapital.com | `npm run build` | Netlify/Vercel; env: `NEXT_PUBLIC_API_URL` |
+| backend | api.goldwaycapital.com | `npm run build && npm run start` | Render/Railway/VPS; env: see `backend/.env.example` |
 
 See each app's `README.md` for details.
