@@ -1,4 +1,4 @@
-import type { GhlAdapter, GhlContactInput, GhlContactResult, GhlOpportunityInput, GhlOpportunityResult, GhlPingResult, GhlResultBase } from "./ghl.types";
+import type { GhlAdapter, GhlCalendar, GhlContactInput, GhlContactResult, GhlCustomField, GhlCustomFieldMap, GhlOpportunityInput, GhlOpportunityResult, GhlPingResult, GhlPipeline, GhlResultBase } from "./ghl.types";
 
 /** Mock GHL — deterministic fake IDs, no network. Used when GHL is off/mock. */
 export class GhlMockAdapter implements GhlAdapter {
@@ -16,6 +16,7 @@ export class GhlMockAdapter implements GhlAdapter {
   async upsertContact(input: GhlContactInput): Promise<GhlContactResult> {
     return { contactId: this.id("contact", input.email || input.phone || input.firstName + input.lastName), mock: true };
   }
+  async updateContactCustomFields(): Promise<void> {}
   async applyTags(): Promise<void> {}
   async upsertOpportunity(input: GhlOpportunityInput): Promise<GhlOpportunityResult> {
     return { opportunityId: this.id("opp", input.contactId + input.stage), mock: true };
@@ -28,4 +29,7 @@ export class GhlMockAdapter implements GhlAdapter {
   async createNote(input: { contactId: string }): Promise<GhlResultBase> {
     return { id: this.id("note", input.contactId), mock: true };
   }
+  async getPipelines(): Promise<GhlPipeline[]> { return []; }
+  async getCalendars(): Promise<GhlCalendar[]> { return []; }
+  async getCustomFields(): Promise<GhlCustomField[]> { return []; }
 }

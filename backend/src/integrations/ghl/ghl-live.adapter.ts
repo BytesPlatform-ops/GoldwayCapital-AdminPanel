@@ -1,5 +1,23 @@
 import type { AppConfigService } from "@/lib/config";
-import type { GhlAdapter, GhlContactInput, GhlContactResult, GhlOpportunityInput, GhlOpportunityResult, GhlPingResult, GhlResultBase } from "./ghl.types";
+import {
+  GhlApiError,
+  type GhlAdapter,
+  type GhlCalendar,
+  type GhlContactInput,
+  type GhlContactResult,
+  type GhlCustomField,
+  type GhlCustomFieldMap,
+  type GhlOpportunityInput,
+  type GhlOpportunityResult,
+  type GhlPingResult,
+  type GhlPipeline,
+  type GhlResultBase,
+} from "./ghl.types";
+
+// GHL requires a Version header per endpoint family. Pipelines/contacts/custom
+// fields were tested on 2021-07-28; calendars on the v3-generation date header.
+const V_DEFAULT = "2021-07-28";
+const V_CALENDARS = "2021-04-15";
 
 /**
  * Live GHL adapter — GoHighLevel API v2 (LeadConnector). Exercised only when
@@ -11,22 +29,23 @@ export class GhlLiveAdapter implements GhlAdapter {
   readonly isLive = true;
   constructor(private readonly config: AppConfigService) {}
 
-  private headers(): Record<string, string> {
+  private headers(version: string): Record<string, string> {
     return {
       Authorization: `Bearer ${this.config.ghl.token}`,
       "Content-Type": "application/json",
-      Version: "2021-07-28",
+      Version: version,
       Accept: "application/json",
     };
   }
 
-  private async req<T>(path: string, method: string, body?: unknown): Promise<T> {
+  private async req<T>(path: string, method: string, body?: unknown, version = V_DEFAULT): Promise<T> {
     const res = await fetch(`${this.config.ghl.baseUrl}${path}`, {
       method,
-      headers: this.headers(),
+      headers: this.headers(version),
       body: body ? JSON.stringify(body) : undefined,
     });
-    if (!res.ok) throw new Error(`GHL ${method} ${path} → ${res.status} ${(await res.text()).slice(0, 400)}`);
+    // Read the body safely regardless of status; throw a token-free typed error.
+    if (!res.ok) throw new GhlApiError(res.status, method, path, await res.text().catch(() => ""));
     return (await res.json().catch(() => ({}))) as T;
   }
 
@@ -62,6 +81,12 @@ export class GhlLiveAdapter implements GhlAdapter {
     const contactId = data.contact?.id ?? data.id;
     if (!contactId) throw new Error("GHL upsertContact: no id returned");
     return { contactId, mock: false };
+  }
+
+  async updateContactCustomFields(contactId: string, fields: GhlCustomFieldMap): Promise<void> {
+    const customFields = this.customFields(fields);
+    if (!customFields) return;
+    await this.req(`/contacts/${contactId}`, "PUT", { customFields });
   }
 
   async applyTags(contactId: string, tags: string[]): Promise<void> {
@@ -103,5 +128,32 @@ export class GhlLiveAdapter implements GhlAdapter {
   async createNote(input: { contactId: string; body: string }): Promise<GhlResultBase> {
     const data = await this.req<{ id?: string; note?: { id: string } }>(`/contacts/${input.contactId}/notes`, "POST", { body: input.body });
     return { id: data.note?.id ?? data.id ?? "", mock: false };
+  }
+
+  // ---- Introspection helpers (read-only; used by the Integrations page) ------
+  async getPipelines(): Promise<GhlPipeline[]> {
+    const data = await this.req<{ pipelines?: Array<{ id: string; name: string; stages?: Array<{ id: string; name: string }> }> }>(
+      `/opportunities/pipelines?locationId=${this.config.ghl.locationId}`,
+      "GET"
+    );
+    return (data.pipelines ?? []).map((p) => ({ id: p.id, name: p.name, stages: (p.stages ?? []).map((s) => ({ id: s.id, name: s.name })) }));
+  }
+
+  async getCalendars(): Promise<GhlCalendar[]> {
+    const data = await this.req<{ calendars?: Array<{ id: string; name: string; slug?: string }> }>(
+      `/calendars/?locationId=${this.config.ghl.locationId}`,
+      "GET",
+      undefined,
+      V_CALENDARS
+    );
+    return (data.calendars ?? []).map((c) => ({ id: c.id, name: c.name, slug: c.slug }));
+  }
+
+  async getCustomFields(): Promise<GhlCustomField[]> {
+    const data = await this.req<{ customFields?: Array<{ id: string; name: string; fieldKey: string; dataType?: string }> }>(
+      `/locations/${this.config.ghl.locationId}/customFields`,
+      "GET"
+    );
+    return (data.customFields ?? []).map((f) => ({ id: f.id, name: f.name, fieldKey: f.fieldKey, dataType: f.dataType }));
   }
 }
