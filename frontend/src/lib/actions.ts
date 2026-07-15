@@ -19,9 +19,13 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
   let token: string | undefined;
   try {
     const res = await authFetch("/login", { method: "POST", body: { email, password } });
-    if (!res.ok) return { error: "Invalid email or password." };
+    // 401 = bad credentials from the backend. Any other non-OK (404/5xx) points
+    // at a misconfigured backend URL rather than the user's password.
+    if (res.status === 401) return { error: "Invalid email or password." };
+    if (!res.ok) return { error: "Could not reach the API. Please try again." };
     token = ((await res.json()) as { token?: string }).token;
   } catch {
+    // fetch threw → network / CORS / DNS failure reaching the backend.
     return { error: "Could not reach the API. Please try again." };
   }
   if (!token) return { error: "Login failed." };

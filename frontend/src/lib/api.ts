@@ -10,7 +10,11 @@ import { cookies } from "next/headers";
  * rendering, so nothing is fetched at build time.
  */
 export function apiBase(): string {
-  return (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001").replace(/\/+$/, "");
+  // These helpers all run server-side (Server Components / Server Actions), so
+  // prefer the private BACKEND_API_URL. Fall back to the public
+  // NEXT_PUBLIC_API_URL (client code / older config), then local dev.
+  const base = process.env.BACKEND_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+  return base.replace(/\/+$/, "");
 }
 
 function authHeaders(): Record<string, string> {
