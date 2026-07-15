@@ -1,4 +1,4 @@
-# Goldway Capital — Admin Panel
+# Goldway Capital — Admin Panel.
 
 Two independently-deployable apps. **The repo root has no code, no `package.json`,
 and no `.env`** — each app is fully self-contained. The public website is
