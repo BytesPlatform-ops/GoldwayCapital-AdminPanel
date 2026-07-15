@@ -6,6 +6,10 @@
 
 generator client {
   provider = "prisma-client-js"
+  // Bundle the query engine for Netlify Functions (AWS Lambda) in addition to
+  // the local build machine. Without the rhel targets, PrismaClient fails to
+  // load its engine at runtime and every /api route 500s/400s on cold start.
+  binaryTargets = ["native", "rhel-openssl-3.0.x", "rhel-openssl-1.0.x"]
 }
 
 datasource db {
