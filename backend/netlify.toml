@@ -3,6 +3,9 @@
   publish = ".next"
 
 [build.environment]
+  # Pin Node to 20 — Prisma 5.22 + Next 14.2 are supported there; Netlify's
+  # default (nodejs24.x) crashes the server function on cold start.
+  NODE_VERSION = "20"
   # This is a server-rendered admin app: every real secret is used only in
   # server-side API routes / Netlify Functions (never inlined into browser
   # code, since none are NEXT_PUBLIC_). The deploy secrets scanner only
