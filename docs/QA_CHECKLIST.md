@@ -38,6 +38,21 @@
 
 ## Security / hardening (before prod)
 - ☐ Seeded passwords changed; sample leads removed
-- ☐ Real `JWT_SECRET` / `SESSION_SECRET` / `LEAD_API_INGEST_KEY` set (key shared web↔api)
-- ☐ `CORS_ORIGINS` restricted to the real web origin; HTTPS; cookies `secure` (automatic in prod)
-- ☐ Turnstile/reCAPTCHA verified server-side (currently accepted; wire verification before launch)
+- ☐ Real `JWT_SECRET` / `LEAD_API_INGEST_KEY` set (key shared web↔api)
+- ☐ `FRONTEND_ORIGIN` + `WORDPRESS_ORIGIN` restricted to the real origins; HTTPS; cookies `secure` (automatic in prod)
+- ☐ `GHL_WEBHOOK_SECRET` set in prod (webhook fails closed without it)
+- ☐ Turnstile/reCAPTCHA verified server-side (not implemented; keys removed from backend env — re-add if wired)
+
+## GHL integration (this pass)
+- ✅ `npm run typecheck` clean · `npm run build` succeeds (all routes + middleware)
+- ✅ Per-form fields mapped to real GHL custom-field keys (`src/lib/lead-forms.ts`)
+- ✅ Hidden + consent fields (leadSource, campaign, landingPageUrl, submissionDateTime,
+  emailConsent, smsConsent, tcpaConsentTimestamp) built on intake and stored on the submission
+- ✅ Submit response returns `ghlContactId` / `ghlOpportunityId` / `calendarLink`; no token/internals
+- ✅ Env audited/cleaned (see `docs/ENV_AUDIT.md`); startup fails fast if GHL flipped live without required keys
+- ☐ **Live cutover** (operator): set `GHL_ENABLED=true` + `GHL_MOCK_MODE=false`, run
+  `backend/scripts/test-leads.sh`, then for each vertical confirm in GHL: contact created,
+  lowercase tag applied, custom fields filled, opportunity in the correct pipeline **New** stage,
+  confirmation workflow fired, calendar link correct
+- ☐ Stage change from admin updates the GHL opportunity; failure surfaces `syncError` + retries
+- ☐ `POST /api/webhooks/ghl` with valid signature/secret updates the mirror; invalid → 401; duplicate event id → deduped
