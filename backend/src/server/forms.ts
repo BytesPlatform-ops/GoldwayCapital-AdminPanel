@@ -7,11 +7,15 @@ import { GhlService } from "@/integrations/ghl/ghl.service";
 import { EmailService } from "@/integrations/email/email.service";
 import { AuditService } from "@/server/audit";
 import { leadSourceDef } from "@/lib/constants";
+import { buildGhlCustomFields, normalizeYesNo, pickFormAnswers } from "@/lib/lead-forms";
 import { CreateLeadDto } from "./dto/create-lead.dto";
 
 export interface IntakeResult {
   ok: boolean;
   leadId?: string;
+  ghlContactId?: string | null;
+  ghlOpportunityId?: string | null;
+  ghlSyncStatus?: string;
   blockedFields: string[];
   message: string;
 }
@@ -51,8 +55,33 @@ export class FormsService {
 
     const def = leadSourceDef(source);
     const now = new Date();
+    const nowIso = now.toISOString();
 
-    // 2. Persist the sanitized submission snapshot (names only for blocked fields).
+    if (!dto.email && !dto.phone) throw new BadRequestException("Provide at least an email or a phone number.");
+
+    // 2a. Whitelisted vertical answers + server-owned hidden/consent fields.
+    const answers = pickFormAnswers(source, rawBody);
+    const emailConsent = normalizeYesNo(rawBody.emailConsent ?? dto.consentGiven);
+    const smsConsent = normalizeYesNo(rawBody.smsConsent);
+    const consentGiven = emailConsent === "Yes" || smsConsent === "Yes" || !!dto.consentGiven;
+    const tcpaConsentTimestamp =
+      (typeof rawBody.tcpaConsentTimestamp === "string" && rawBody.tcpaConsentTimestamp) ||
+      (consentGiven ? nowIso : "");
+    const hidden = {
+      leadSource: def.label,
+      campaign: String(rawBody.campaign ?? dto.utmCampaign ?? ""),
+      landingPageUrl: dto.sourcePageUrl ?? String(rawBody.landingPageUrl ?? ""),
+      submissionDateTime: nowIso,
+      bestTimeToCall: String(rawBody.bestTimeToCall ?? ""),
+      emailConsent,
+      smsConsent,
+      tcpaConsentTimestamp,
+    };
+    // Ready-to-send GHL custom fields (keyed by GHL field key). Only whitelisted
+    // keys survive — health/coverage fields never reach here.
+    const ghlCustomFields = buildGhlCustomFields(source, { ...answers, ...hidden });
+
+    // 2b. Persist the sanitized submission snapshot (names only for blocked fields).
     const snapshot: Prisma.InputJsonValue = {
       firstName: dto.firstName,
       lastName: dto.lastName,
@@ -64,13 +93,18 @@ export class FormsService {
       preferredContactMethod: dto.preferredContactMethod ?? null,
       preferredContactTime: dto.preferredContactTime ?? null,
       serviceInterest: dto.serviceInterest ?? null,
-      consentGiven: !!dto.consentGiven,
+      consentGiven,
+      emailConsent,
+      smsConsent,
+      tcpaConsentTimestamp,
       utmSource: dto.utmSource ?? null,
       utmMedium: dto.utmMedium ?? null,
       utmCampaign: dto.utmCampaign ?? null,
+      formAnswers: answers as Prisma.InputJsonValue,
+      hidden: hidden as Prisma.InputJsonValue,
+      // The exact payload GHL will receive as custom fields (audit + resync source).
+      ghlCustomFields: ghlCustomFields as Prisma.InputJsonValue,
     };
-
-    if (!dto.email && !dto.phone) throw new BadRequestException("Provide at least an email or a phone number.");
 
     const submission = await this.prisma.formSubmission.create({
       data: {
@@ -99,8 +133,8 @@ export class FormsService {
         formName: def.formName,
         pipelineStage: "NEW",
         ghlSyncStatus: "PENDING",
-        consentGiven: !!dto.consentGiven,
-        consentTimestamp: dto.consentGiven ? now : null,
+        consentGiven,
+        consentTimestamp: consentGiven ? now : null,
         preferredContactMethod: dto.preferredContactMethod ?? null,
         preferredContactTime: dto.preferredContactTime ?? null,
         sourcePageUrl: dto.sourcePageUrl ?? null,
@@ -119,11 +153,20 @@ export class FormsService {
     await this.audit.log({ action: "lead.created", entityType: "lead", entityId: lead.id });
 
     // 4. GHL sync + confirmation email (best-effort, never block the response).
-    await this.ghl.syncLead(lead.id).catch(() => undefined);
-    if (dto.email) {
+    //    Email is sent only when the lead consented to email contact.
+    const synced = await this.ghl.syncLead(lead.id).catch(() => undefined);
+    if (dto.email && emailConsent === "Yes") {
       await this.email.sendConfirmation(lead.id, source, dto.email, dto.firstName).catch(() => undefined);
     }
 
-    return { ok: true, leadId: lead.id, blockedFields, message: "Lead received." };
+    return {
+      ok: true,
+      leadId: lead.id,
+      ghlContactId: synced?.ghlContactId ?? null,
+      ghlOpportunityId: synced?.ghlOpportunityId ?? null,
+      ghlSyncStatus: synced?.ghlSyncStatus ?? lead.ghlSyncStatus,
+      blockedFields,
+      message: "Lead received.",
+    };
   }
 }

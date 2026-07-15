@@ -90,6 +90,15 @@ export class GhlService {
     const pipeline = this.config.ghlPipelineFor(lead.leadSource);
     const started = Date.now();
 
+    // GHL custom fields (keyed by GHL field key) were computed + stored on intake.
+    const submission = await this.prisma.formSubmission.findFirst({
+      where: { leadId: lead.id },
+      orderBy: { createdAt: "desc" },
+      select: { sanitizedPayload: true },
+    });
+    const snapshot = (submission?.sanitizedPayload ?? {}) as Record<string, unknown>;
+    const customFields = (snapshot.ghlCustomFields ?? {}) as Record<string, string | number | boolean | null>;
+
     try {
       const contact = await this.logs.withRetry(() =>
         adapter.upsertContact({
@@ -102,13 +111,7 @@ export class GhlService {
           postalCode: lead.zipCode,
           tags: [tag],
           source: def.label,
-          customFields: {
-            service_interest: lead.serviceInterest ?? "",
-            form_name: lead.formName,
-            consent_given: lead.consentGiven,
-            utm_source: lead.utmSource ?? "",
-            soa_status: lead.soaStatus,
-          },
+          customFields,
         })
       );
 
