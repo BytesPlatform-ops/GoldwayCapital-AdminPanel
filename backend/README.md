@@ -9,6 +9,13 @@ The admin panel UI lives in the separate `frontend/` app and calls this API
 cross-origin; the CORS middleware (`src/middleware.ts`) allows only
 `FRONTEND_ORIGIN` and `WORDPRESS_ORIGIN` (never a wildcard).
 
+## Secrets & safety
+All real secrets (DB URL, `JWT_SECRET`, the GHL private integration token, GHL
+ids) live only in `.env`, which is gitignored and never committed. Only
+`.env.example` (placeholders) is tracked. The GHL token stays server-side — it is
+never returned in an API response, logged, or shared with the frontend/WordPress.
+Config logging reports only whether a key is present, never its value.
+
 ## Run
 ```bash
 npm install
