@@ -145,6 +145,56 @@ export class AppConfigService {
     return this.ghl.pipelines[source] ?? { pipelineId: this.ghl.pipelineId, stageIds: this.ghl.stageIds };
   }
 
+  /**
+   * Env var NAMES that must be present before GHL can safely go live, grouped.
+   * Custom fields validated here are only the common/hidden ones applied to every
+   * lead; per-vertical field ids are reported (not hard-required).
+   */
+  private requiredGhlEnvNames(): string[] {
+    const names: string[] = ["GHL_PRIVATE_INTEGRATION_TOKEN", "GHL_LOCATION_ID"];
+    for (const s of GHL_SOURCES) {
+      names.push(`GHL_TAG_${s}`);
+      names.push(`GHL_PIPELINE_${s}_ID`);
+      for (const st of GHL_STAGES) names.push(`GHL_STAGE_${s}_${st}_ID`);
+      names.push(CALENDAR_LINK_ENV[s]);
+    }
+    names.push(
+      "GHL_CF_LEAD_SOURCE_ID", "GHL_CF_CAMPAIGN_ID", "GHL_CF_LANDING_PAGE_URL_ID",
+      "GHL_CF_SUBMISSION_DATE_TIME_ID", "GHL_CF_EMAIL_CONSENT_ID",
+      "GHL_CF_SMS_CONSENT_ID", "GHL_CF_TCPA_CONSENT_TIMESTAMP_ID"
+    );
+    return names;
+  }
+
+  /** Required GHL env var names that are currently missing/blank. */
+  missingGhlEnv(): string[] {
+    return this.requiredGhlEnvNames().filter((n) => !str(process.env[n]));
+  }
+
+  /** Presence-only config report (booleans, never values) — safe to log. */
+  ghlConfigReport(): Record<string, boolean> {
+    return {
+      enabled: this.ghl.enabled,
+      mockMode: this.ghl.mockMode,
+      tokenPresent: !!this.ghl.token,
+      locationPresent: !!this.ghl.locationId,
+      allPipelinesPresent: Object.values(this.ghl.pipelines).every((p) => !!p.pipelineId),
+      allStagesPresent: Object.values(this.ghl.pipelines).every((p) => Object.values(p.stageIds).every(Boolean)),
+      allCalendarLinksPresent: Object.values(this.calendarLinks).every(Boolean),
+    };
+  }
+
+  /**
+   * Fail fast on startup: when the operator flips GHL live (GHL_ENABLED=true)
+   * outside tests, missing required env aborts boot with a clear, value-free
+   * message. Mock/disabled mode never throws.
+   */
+  assertGhlConfigured(): void {
+    if (process.env.NODE_ENV === "test" || !this.ghl.enabled) return;
+    const missing = this.missingGhlEnv();
+    if (missing.length) throw new Error(`Missing required GHL env: ${missing.join(", ")}`);
+  }
+
   /** GHL should make real API calls only when fully configured and not mocked. */
   ghlLive(): boolean {
     return this.ghl.enabled && !this.ghl.mockMode && !!this.ghl.token && !!this.ghl.locationId;

@@ -23,6 +23,10 @@ import { IntegrationsService } from "./integrations";
 import { WebhooksService } from "./webhooks";
 
 function build() {
+  // Fail fast when GHL is flipped live without its required env (skips in test/mock).
+  config.assertGhlConfigured();
+  // Presence-only startup log — never prints secret values.
+  console.info("[config] GHL", JSON.stringify(config.ghlConfigReport()));
   const audit = new AuditService(prisma);
   const integrationLogs = new IntegrationLogsService(prisma);
   const compliance = new ComplianceService(prisma);
