@@ -5,8 +5,14 @@ import { services } from "@/server/services";
 import { config } from "@/lib/config";
 import { toCreateLeadDto } from "@/server/dto/create-lead.dto";
 import { BadRequestException, ForbiddenException } from "@/lib/errors";
+import { preflight, withCors } from "@/lib/cors";
 
 export const dynamic = "force-dynamic";
+
+/** CORS preflight for browser-based form posts (WordPress site). */
+export async function OPTIONS(req: NextRequest) {
+  return preflight(req);
+}
 
 /**
  * Public lead intake for the WordPress website (goldwaycapital.com).
@@ -23,7 +29,7 @@ const FORM_TYPES: Record<string, LeadSource> = {
 };
 
 export async function POST(req: NextRequest) {
-  return handle(async () => {
+  const res = await handle(async () => {
     // Optional shared ingest key for the public website (skipped when unset).
     if (config.leadApiIngestKey && req.headers.get("x-goldway-key") !== config.leadApiIngestKey) {
       throw new ForbiddenException("Invalid ingest key");
@@ -37,4 +43,5 @@ export async function POST(req: NextRequest) {
     const result = await services.forms.intake(source, toCreateLeadDto(body), body, requestContext(req));
     return { ...result, calendarLink: config.calendarLinks[source] || null };
   }, 201);
+  return withCors(res, req);
 }
