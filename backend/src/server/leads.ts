@@ -4,6 +4,7 @@ import { PrismaService } from "@/db/prisma";
 import { ComplianceService } from "@/server/compliance";
 import { GhlService } from "@/integrations/ghl/ghl.service";
 import { AuditService } from "@/server/audit";
+import { NOTE_HEALTH_WARNING } from "@/lib/constants";
 import type { AuthUser } from "@/types";
 import {
   CreateAppointmentDto,
@@ -95,7 +96,12 @@ export class LeadsService {
     });
     await this.audit.log({ actorId: user.id, action: "lead.stage_changed", entityType: "lead", entityId: id, metadata: { from: before.pipelineStage, to: stage } });
     const ghlSynced = await this.ghl.syncStage(id, stage);
-    return { ok: true, ghlSynced, lead: await this.prisma.lead.findUnique({ where: { id } }) };
+    return {
+      ok: true,
+      ghlSynced,
+      syncError: ghlSynced ? null : "Stage saved locally, but the GHL opportunity did not update. It will retry; you can also use Retry failed sync.",
+      lead: await this.prisma.lead.findUnique({ where: { id } }),
+    };
   }
 
   async addNote(id: string, dto: CreateNoteDto, user: AuthUser) {
@@ -103,7 +109,7 @@ export class LeadsService {
     const complianceFlagged = this.compliance.looksLikeHealthInfo(dto.body);
     const note = await this.prisma.leadNote.create({ data: { leadId: id, authorId: user.id, body: dto.body, complianceFlagged } });
     await this.audit.log({ actorId: user.id, action: "note.added", entityType: "lead", entityId: id, metadata: { complianceFlagged } });
-    return note;
+    return { ...note, complianceWarning: complianceFlagged ? NOTE_HEALTH_WARNING : null };
   }
 
   async addCallLog(id: string, dto: CreateCallLogDto, user: AuthUser) {
@@ -114,7 +120,7 @@ export class LeadsService {
     });
     await this.prisma.lead.update({ where: { id }, data: { lastContactedAt: new Date() } });
     await this.audit.log({ actorId: user.id, action: "call.logged", entityType: "lead", entityId: id, metadata: { outcome: dto.outcome, complianceFlagged } });
-    return log;
+    return { ...log, complianceWarning: complianceFlagged ? NOTE_HEALTH_WARNING : null };
   }
 
   async addEmailLog(id: string, dto: CreateEmailLogDto, user: AuthUser) {
