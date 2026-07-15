@@ -106,3 +106,19 @@ export function buildGhlCustomFields(source: LeadSource, values: Record<string, 
 export function opportunityName(source: LeadSource, firstName: string, lastName: string): string {
   return `${firstName} ${lastName} — ${leadSourceDef(source).label}`.trim();
 }
+
+/** Pick only the whitelisted vertical answer values a site sent (blank-dropped). */
+export function pickFormAnswers(source: LeadSource, body: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(FORM_GHL_FIELDS[source])) {
+    if (body[key] !== undefined && body[key] !== null && body[key] !== "") out[key] = body[key];
+  }
+  return out;
+}
+
+/** Normalize consent-ish inputs (checkbox, "true", "1", "yes") to Yes/No. */
+export function normalizeYesNo(v: unknown): "Yes" | "No" {
+  if (Array.isArray(v)) return v.length > 0 ? "Yes" : "No";
+  const s = String(v ?? "").trim().toLowerCase();
+  return s === "yes" || s === "true" || s === "1" || s === "on" || s === "y" ? "Yes" : "No";
+}
