@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   return handle(async () => {
     const body = await req.json().catch(() => ({}));
-    return services.webhooks.handleGhl(body, req.headers.get("x-ghl-signature"));
+    const secret = req.headers.get("x-webhook-secret") ?? new URL(req.url).searchParams.get("secret");
+    return services.webhooks.handleGhl(body, { signature: req.headers.get("x-ghl-signature"), secret });
   });
 }
