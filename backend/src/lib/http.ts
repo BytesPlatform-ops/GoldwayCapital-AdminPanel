@@ -14,6 +14,11 @@ export async function handle(fn: () => Promise<unknown> | unknown, successStatus
     if (e instanceof HttpError) {
       return NextResponse.json({ statusCode: e.status, message: e.message }, { status: e.status });
     }
+    // A raw GHL upstream error that reached a route → 502 (never leaks the token).
+    if (e && typeof e === "object" && (e as { name?: string }).name === "GhlApiError") {
+      const status = (e as { status?: number }).status ?? 502;
+      return NextResponse.json({ statusCode: 502, message: `GHL upstream error (${status})` }, { status: 502 });
+    }
     console.error("[api] unhandled error:", e);
     return NextResponse.json({ statusCode: 500, message: "Internal server error" }, { status: 500 });
   }

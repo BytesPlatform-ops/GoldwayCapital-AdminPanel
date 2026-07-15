@@ -29,3 +29,15 @@ export class NotFoundException extends HttpError {
     super(404, message);
   }
 }
+/** Upstream (GHL) returned an error — surfaced as 502 Bad Gateway. */
+export class BadGatewayException extends HttpError {
+  constructor(message = "Upstream service error") {
+    super(502, message);
+  }
+}
+/** Upstream (GHL) unreachable / not configured — surfaced as 503. */
+export class ServiceUnavailableException extends HttpError {
+  constructor(message = "Service unavailable") {
+    super(503, message);
+  }
+}

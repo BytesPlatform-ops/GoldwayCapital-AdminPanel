@@ -8,6 +8,7 @@ import { EmailService } from "@/integrations/email/email.service";
 import { AuditService } from "@/server/audit";
 import { leadSourceDef } from "@/lib/constants";
 import { buildGhlCustomFields, normalizeYesNo, pickFormAnswers } from "@/lib/lead-forms";
+import { validateLeadSubmission } from "@/lib/lead-validation";
 import { CreateLeadDto } from "./dto/create-lead.dto";
 
 export interface IntakeResult {
@@ -44,6 +45,9 @@ export class FormsService {
   ): Promise<IntakeResult> {
     // Honeypot tripped → accept silently, drop.
     if (dto.website && dto.website.length > 0) return { ok: true, blockedFields: [], message: "ok" };
+
+    // Validate required fields + formats (throws BadRequestException → 400).
+    validateLeadSubmission(source, rawBody);
 
     // 1. Strip health/coverage fields from the RAW body (defense in depth; the DTO
     //    whitelist already dropped unknown keys, but we scan the raw body so we can
