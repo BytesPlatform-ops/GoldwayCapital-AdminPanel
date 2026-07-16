@@ -94,17 +94,39 @@ export class GhlLiveAdapter implements GhlAdapter {
   }
 
   async upsertOpportunity(input: GhlOpportunityInput): Promise<GhlOpportunityResult> {
-    const data = await this.req<{ opportunity?: { id: string }; id?: string }>("/opportunities/", "POST", {
-      locationId: this.config.ghl.locationId,
-      pipelineId: input.pipelineId,
-      pipelineStageId: input.pipelineStageId,
-      contactId: input.contactId,
-      name: input.name,
-      status: "open",
-    });
-    const opportunityId = data.opportunity?.id ?? data.id;
-    if (!opportunityId) throw new Error("GHL upsertOpportunity: no id returned");
-    return { opportunityId, mock: false };
+    try {
+      const data = await this.req<{ opportunity?: { id: string }; id?: string }>("/opportunities/", "POST", {
+        locationId: this.config.ghl.locationId,
+        pipelineId: input.pipelineId,
+        pipelineStageId: input.pipelineStageId,
+        contactId: input.contactId,
+        name: input.name,
+        status: "open",
+      });
+      const opportunityId = data.opportunity?.id ?? data.id;
+      if (!opportunityId) throw new Error("GHL upsertOpportunity: no id returned");
+      return { opportunityId, mock: false };
+    } catch (err) {
+      // GHL refuses a second opportunity for a contact that already has one.
+      // Reuse the existing opportunity (idempotent re-submits/retries) and move
+      // it to the target stage.
+      if (err instanceof GhlApiError && err.status === 400) {
+        const existingId = (() => {
+          try {
+            return JSON.parse(err.body)?.meta?.existingId as string | undefined;
+          } catch {
+            return undefined;
+          }
+        })();
+        if (existingId) {
+          if (input.pipelineStageId) {
+            await this.req(`/opportunities/${existingId}`, "PUT", { pipelineStageId: input.pipelineStageId }).catch(() => undefined);
+          }
+          return { opportunityId: String(existingId), mock: false };
+        }
+      }
+      throw err;
+    }
   }
 
   async moveOpportunityStage(opportunityId: string, pipelineStageId: string): Promise<void> {
