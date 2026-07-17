@@ -20,6 +20,13 @@ export default async function DashboardPage() {
   ]);
   const maxSource = Math.max(1, ...bySource.map((s) => s.count));
   const totalSource = bySource.reduce((sum, s) => sum + s.count, 0);
+  const stages = [
+    { label: "New", count: summary.newLeads, color: "bg-blue-500" },
+    { label: "Contacted", count: summary.contacted, color: "bg-amber-500" },
+    { label: "Appointment Set", count: summary.appointmentSet, color: "bg-purple-500" },
+    { label: "Closed", count: summary.closed, color: "bg-green-500" },
+  ];
+  const stageTotal = Math.max(1, stages.reduce((sum, s) => sum + s.count, 0));
 
   return (
     <div>
@@ -33,6 +40,29 @@ export default async function DashboardPage() {
         <StatCard label="Upcoming Appointments" value={summary.upcoming} />
         <StatCard label="Recruiting Inquiries" value={summary.recruiting} />
         <StatCard label="Sync Errors" value={summary.syncErrors} tone={summary.syncErrors > 0 ? "red" : "green"} />
+      </div>
+
+      <div className="card mt-6">
+        <div className="mb-4 flex items-baseline justify-between">
+          <h2 className="text-lg font-bold text-navy-800">Pipeline Distribution</h2>
+          <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">{summary.total} leads</span>
+        </div>
+        <div className="flex h-4 w-full overflow-hidden rounded-full bg-navy-50 ring-1 ring-inset ring-navy-100">
+          {stages.map((s) =>
+            s.count > 0 ? (
+              <div key={s.label} className={`${s.color} h-full transition-all duration-700 ease-out`} style={{ width: `${(s.count / stageTotal) * 100}%` }} title={`${s.label}: ${s.count}`} />
+            ) : null
+          )}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
+          {stages.map((s) => (
+            <div key={s.label} className="flex items-center gap-2 text-sm">
+              <span className={`h-2.5 w-2.5 rounded-full ${s.color}`} />
+              <span className="text-gray-600">{s.label}</span>
+              <span className="tabular-nums font-bold text-navy-800">{s.count}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
