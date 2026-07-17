@@ -37,14 +37,14 @@ export default async function AppointmentsPage({ searchParams }: { searchParams:
         <div className="card text-center text-gray-500">No upcoming appointments.</div>
       ) : (
         <>
-          <div className="hidden overflow-x-auto rounded-xl border border-navy-100 bg-white shadow-sm md:block">
-            <table className="w-full text-sm">
-              <thead className="border-b border-navy-100 bg-navy-50 text-left text-xs uppercase text-navy-700">
-                <tr><th className="px-4 py-3">When</th><th className="px-4 py-3">Lead</th><th className="px-4 py-3">Service</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">SOA</th><th className="px-4 py-3"></th></tr>
+          <div className="data-table hidden md:block">
+            <table>
+              <thead>
+                <tr><th>When</th><th>Lead</th><th>Service</th><th>Status</th><th>SOA</th><th></th></tr>
               </thead>
-              <tbody className="divide-y divide-navy-50">
+              <tbody>
                 {appts.map((a) => (
-                  <tr key={a.id} className="hover:bg-navy-50/40">
+                  <tr key={a.id}>
                     <td className="px-4 py-3 font-medium"><Link href={`/admin/appointments/${a.id}`} className="text-navy-700 hover:underline">{formatDateTime(a.scheduledAt)}</Link></td>
                     <td className="px-4 py-3"><Link href={`/admin/leads/${a.lead.id}`} className="text-navy-600 hover:underline">{a.lead.firstName} {a.lead.lastName}</Link></td>
                     <td className="px-4 py-3 text-gray-600">{a.serviceType}</td>
