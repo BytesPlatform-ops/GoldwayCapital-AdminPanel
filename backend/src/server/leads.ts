@@ -164,6 +164,32 @@ export class LeadsService {
     return appt;
   }
 
+  /** Permanently delete a lead. Cascades to notes/calls/emails/appointments;
+   *  form submissions and follow-up tasks are detached (leadId set null). */
+  async remove(id: string, user: AuthUser) {
+    const lead = await this.prisma.lead.findUnique({ where: { id }, select: { id: true, firstName: true, lastName: true } });
+    if (!lead) throw new NotFoundException("Lead not found");
+    await this.prisma.lead.delete({ where: { id } });
+    await this.audit.log({ actorId: user.id, action: "lead.deleted", entityType: "lead", entityId: id, metadata: { name: `${lead.firstName} ${lead.lastName}` } });
+    return { ok: true };
+  }
+
+  async removeNote(leadId: string, noteId: string, user: AuthUser) {
+    const note = await this.prisma.leadNote.findFirst({ where: { id: noteId, leadId }, select: { id: true } });
+    if (!note) throw new NotFoundException("Note not found");
+    await this.prisma.leadNote.delete({ where: { id: noteId } });
+    await this.audit.log({ actorId: user.id, action: "note.deleted", entityType: "lead", entityId: leadId });
+    return { ok: true };
+  }
+
+  async removeCallLog(leadId: string, logId: string, user: AuthUser) {
+    const log = await this.prisma.callLog.findFirst({ where: { id: logId, leadId }, select: { id: true } });
+    if (!log) throw new NotFoundException("Call log not found");
+    await this.prisma.callLog.delete({ where: { id: logId } });
+    await this.audit.log({ actorId: user.id, action: "call.deleted", entityType: "lead", entityId: leadId });
+    return { ok: true };
+  }
+
   private async ensureExists(id: string) {
     const exists = await this.prisma.lead.findUnique({ where: { id }, select: { id: true } });
     if (!exists) throw new NotFoundException("Lead not found");

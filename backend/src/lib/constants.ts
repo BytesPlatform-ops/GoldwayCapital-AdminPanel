@@ -69,6 +69,8 @@ export const PERMISSIONS = [
   "notes.create", "calls.create", "emails.send", "tasks.manage", "appointments.manage",
   "content.create", "content.review", "content.publish",
   "compliance.manage", "settings.manage", "users.manage", "audit.view", "integrations.manage",
+  // Destructive record deletion — admins only (see ROLE_PERMISSIONS; not granted to VA).
+  "records.delete",
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 

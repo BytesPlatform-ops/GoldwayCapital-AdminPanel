@@ -1,6 +1,7 @@
 import type { PrismaService } from "@/db/prisma";
 import type { AuditService } from "@/server/audit";
 import type { AuthUser } from "@/types";
+import { NotFoundException } from "@/lib/nest";
 
 /** Small read/utility operations: users (for assignment), tasks, appointments, recruiting. */
 export class MiscService {
@@ -22,6 +23,22 @@ export class MiscService {
   async completeTask(id: string, user: AuthUser) {
     await this.prisma.followUpTask.update({ where: { id }, data: { status: "DONE", completedAt: new Date() } });
     await this.audit.log({ actorId: user.id, action: "task.completed", entityType: "task", entityId: id });
+    return { ok: true };
+  }
+
+  async deleteTask(id: string, user: AuthUser) {
+    const task = await this.prisma.followUpTask.findUnique({ where: { id }, select: { id: true } });
+    if (!task) throw new NotFoundException("Task not found");
+    await this.prisma.followUpTask.delete({ where: { id } });
+    await this.audit.log({ actorId: user.id, action: "task.deleted", entityType: "task", entityId: id });
+    return { ok: true };
+  }
+
+  async deleteAppointment(id: string, user: AuthUser) {
+    const appt = await this.prisma.appointment.findUnique({ where: { id }, select: { id: true } });
+    if (!appt) throw new NotFoundException("Appointment not found");
+    await this.prisma.appointment.delete({ where: { id } });
+    await this.audit.log({ actorId: user.id, action: "appointment.deleted", entityType: "appointment", entityId: id });
     return { ok: true };
   }
 

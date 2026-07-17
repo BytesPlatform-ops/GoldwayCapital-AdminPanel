@@ -19,3 +19,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return services.leads.update(params.id, body, user);
   });
 }
+
+export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+  return handle(() => {
+    const user = requirePermission("records.delete");
+    return services.leads.remove(params.id, user);
+  });
+}
