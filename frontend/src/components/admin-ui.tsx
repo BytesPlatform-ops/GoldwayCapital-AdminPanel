@@ -19,7 +19,12 @@ export const SOURCE_LABELS: Record<string, string> = {
 };
 
 export function StageBadge({ stage }: { stage: string }) {
-  return <span className={`badge ${STAGE_STYLES[stage] ?? "bg-gray-100 text-gray-700"}`}>{STAGE_LABELS[stage] ?? stage}</span>;
+  return (
+    <span className={`badge ${STAGE_STYLES[stage] ?? "bg-gray-100 text-gray-700"}`}>
+      <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-current opacity-70" />
+      {STAGE_LABELS[stage] ?? stage}
+    </span>
+  );
 }
 
 const SYNC_STYLES: Record<string, string> = {
@@ -31,7 +36,12 @@ const SYNC_STYLES: Record<string, string> = {
 };
 export function SyncBadge({ status }: { status: string }) {
   const label = status === "SYNCED_MOCK" ? "mock (local)" : status.toLowerCase();
-  return <span className={`badge ${SYNC_STYLES[status] ?? "bg-gray-100 text-gray-700"}`}>{label}</span>;
+  return (
+    <span className={`badge ${SYNC_STYLES[status] ?? "bg-gray-100 text-gray-700"}`}>
+      <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-current opacity-70" />
+      {label}
+    </span>
+  );
 }
 
 export function StatCard({ label, value, tone = "navy", hint }: { label: string; value: number | string; tone?: "navy" | "gold" | "red" | "green"; hint?: string }) {
