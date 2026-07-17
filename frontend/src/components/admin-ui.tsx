@@ -57,9 +57,12 @@ export function StatCard({ label, value, tone = "navy", hint }: { label: string;
 export function SectionHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) {
   return (
     <div className="mb-6 flex items-end justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-bold text-navy-800">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-gray-500">{subtitle}</p>}
+      <div className="flex items-start gap-3">
+        <span className="mt-1.5 h-8 w-1.5 shrink-0 rounded-full bg-gradient-to-b from-gold-500 to-gold-700" />
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-navy-800">{title}</h1>
+          {subtitle && <p className="mt-1 text-sm text-gray-500">{subtitle}</p>}
+        </div>
       </div>
       {action}
     </div>
