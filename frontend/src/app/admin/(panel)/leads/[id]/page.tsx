@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { apiGet, ApiError } from "@/lib/api";
 import { StageBadge, SyncBadge, SOURCE_LABELS } from "@/components/admin-ui";
 import { StageChanger, NoteForm, CallLogForm, SoaControl, FollowUpControl, ResyncButton } from "./LeadControls";
+import { ConfirmButton } from "@/components/ConfirmButton";
 
 export const dynamic = "force-dynamic";
 
@@ -69,7 +70,18 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
             <SyncBadge status={lead.ghlSyncStatus} />
           </div>
         </div>
-        <ResyncButton id={lead.id} />
+        <div className="flex items-center gap-2">
+          <ResyncButton id={lead.id} />
+          <ConfirmButton
+            path={`/leads/${lead.id}`}
+            redirectTo="/admin/leads"
+            title="Delete this lead?"
+            message="The lead and its notes, calls, emails and appointments will be permanently deleted. This cannot be undone."
+            className="btn-ghost text-sm text-red-600 hover:bg-red-50"
+          >
+            Delete lead
+          </ConfirmButton>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -106,7 +118,10 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
             <ul className="mt-4 space-y-3">
               {lead.notes.map((n) => (
                 <li key={n.id} className="rounded-lg border border-navy-50 bg-cream px-4 py-3">
-                  <div className="flex items-center justify-between text-xs text-gray-400"><span>{n.author.name}</span><span>{formatDateTime(n.createdAt)}</span></div>
+                  <div className="flex items-center justify-between text-xs text-gray-400">
+                    <span>{n.author.name}</span>
+                    <span className="flex items-center gap-2"><span>{formatDateTime(n.createdAt)}</span><ConfirmButton path={`/leads/${lead.id}/notes/${n.id}`} title="Delete note?" message="This note will be permanently removed." /></span>
+                  </div>
                   <p className="mt-1 text-sm text-ink">{n.body}</p>
                   {n.complianceFlagged && <p className="mt-1 text-xs font-semibold text-amber-700">⚠ Flagged for compliance review.</p>}
                 </li>
@@ -121,7 +136,10 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
             <ul className="mt-4 space-y-3">
               {lead.callLogs.map((c) => (
                 <li key={c.id} className="rounded-lg border border-navy-50 bg-cream px-4 py-3">
-                  <div className="flex items-center justify-between text-xs text-gray-400"><span className="font-semibold text-navy-700">{c.outcome}{c.followUpNeeded ? " · follow-up needed" : ""}</span><span>{formatDateTime(c.occurredAt)} · {c.author.name}</span></div>
+                  <div className="flex items-center justify-between text-xs text-gray-400">
+                    <span className="font-semibold text-navy-700">{c.outcome}{c.followUpNeeded ? " · follow-up needed" : ""}</span>
+                    <span className="flex items-center gap-2"><span>{formatDateTime(c.occurredAt)} · {c.author.name}</span><ConfirmButton path={`/leads/${lead.id}/call-logs/${c.id}`} title="Delete call log?" message="This call log will be permanently removed." /></span>
+                  </div>
                   {c.notes && <p className="mt-1 text-sm text-ink">{c.notes}</p>}
                   {c.complianceFlagged && <p className="mt-1 text-xs font-semibold text-amber-700">⚠ Flagged for compliance review.</p>}
                 </li>

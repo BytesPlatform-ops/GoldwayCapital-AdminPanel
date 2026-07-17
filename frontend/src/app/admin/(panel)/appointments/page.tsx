@@ -2,6 +2,7 @@ import Link from "next/link";
 import { formatDateTime } from "@/lib/format";
 import { apiGet } from "@/lib/api";
 import { SectionHeader } from "@/components/admin-ui";
+import { ConfirmButton } from "@/components/ConfirmButton";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,7 @@ export default async function AppointmentsPage({ searchParams }: { searchParams:
         <div className="card overflow-x-auto p-0">
           <table className="w-full text-sm">
             <thead className="border-b border-navy-100 bg-navy-50 text-left text-xs uppercase text-navy-700">
-              <tr><th className="px-4 py-3">When</th><th className="px-4 py-3">Lead</th><th className="px-4 py-3">Service</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">SOA</th></tr>
+              <tr><th className="px-4 py-3">When</th><th className="px-4 py-3">Lead</th><th className="px-4 py-3">Service</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">SOA</th><th className="px-4 py-3"></th></tr>
             </thead>
             <tbody className="divide-y divide-navy-50">
               {appts.map((a) => (
@@ -41,6 +42,7 @@ export default async function AppointmentsPage({ searchParams }: { searchParams:
                   <td className="px-4 py-3 capitalize text-gray-600">{a.serviceType.replace("-", " ")}</td>
                   <td className="px-4 py-3 text-gray-600">{a.status}</td>
                   <td className="px-4 py-3">{a.serviceType === "medicare" ? <span className="badge bg-amber-100 text-amber-800">{a.lead.soaStatus.replace(/_/g, " ")}</span> : <span className="text-gray-300">—</span>}</td>
+                  <td className="px-4 py-3 text-right"><ConfirmButton path={`/appointments/${a.id}`} title="Delete appointment?" message="This appointment will be permanently removed from the panel." /></td>
                 </tr>
               ))}
             </tbody>

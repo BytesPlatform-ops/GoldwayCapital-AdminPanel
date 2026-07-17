@@ -2,6 +2,7 @@ import Link from "next/link";
 import { formatDate } from "@/lib/format";
 import { apiGet } from "@/lib/api";
 import { SectionHeader } from "@/components/admin-ui";
+import { ConfirmButton } from "@/components/ConfirmButton";
 import { CompleteButton } from "./CompleteButton";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +32,12 @@ export default async function TasksPage() {
                     <td className="px-4 py-3">{t.lead ? <Link href={`/admin/leads/${t.lead.id}`} className="text-navy-600 hover:underline">{t.lead.firstName} {t.lead.lastName}</Link> : "—"}</td>
                     <td className="px-4 py-3 text-gray-600">{t.assignedTo?.name ?? "—"}</td>
                     <td className="px-4 py-3">{t.dueAt ? <span className={overdue ? "font-semibold text-red-600" : "text-gray-600"}>{formatDate(t.dueAt)}{overdue ? " (overdue)" : ""}</span> : "—"}</td>
-                    <td className="px-4 py-3 text-right"><CompleteButton id={t.id} /></td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-2">
+                        <CompleteButton id={t.id} />
+                        <ConfirmButton path={`/tasks/${t.id}`} title="Delete task?" message="This follow-up task will be permanently removed." />
+                      </div>
+                    </td>
                   </tr>
                 );
               })}

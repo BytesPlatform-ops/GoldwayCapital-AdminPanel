@@ -2,6 +2,7 @@ import Link from "next/link";
 import { formatDate } from "@/lib/format";
 import { apiGet } from "@/lib/api";
 import { SectionHeader, StageBadge, SyncBadge, SOURCE_LABELS, STAGE_LABELS } from "@/components/admin-ui";
+import { ConfirmButton } from "@/components/ConfirmButton";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +57,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: { q?: 
         <div className="card overflow-x-auto p-0">
           <table className="w-full text-sm">
             <thead className="border-b border-navy-100 bg-navy-50 text-left text-xs uppercase text-navy-700">
-              <tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Contact</th><th className="px-4 py-3">Source</th><th className="px-4 py-3">Stage</th><th className="px-4 py-3">Assigned</th><th className="px-4 py-3">Next follow-up</th><th className="px-4 py-3">GHL</th><th className="px-4 py-3">Created</th></tr>
+              <tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Contact</th><th className="px-4 py-3">Source</th><th className="px-4 py-3">Stage</th><th className="px-4 py-3">Assigned</th><th className="px-4 py-3">Next follow-up</th><th className="px-4 py-3">GHL</th><th className="px-4 py-3">Created</th><th className="px-4 py-3"></th></tr>
             </thead>
             <tbody className="divide-y divide-navy-50">
               {leads.map((l) => {
@@ -71,6 +72,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: { q?: 
                     <td className="px-4 py-3">{l.nextFollowUpAt ? <span className={overdue ? "font-semibold text-red-600" : "text-gray-600"}>{formatDate(l.nextFollowUpAt)}</span> : <span className="text-gray-400">—</span>}</td>
                     <td className="px-4 py-3"><SyncBadge status={l.ghlSyncStatus} /></td>
                     <td className="px-4 py-3 text-gray-400">{formatDate(l.createdAt)}</td>
+                    <td className="px-4 py-3 text-right"><ConfirmButton path={`/leads/${l.id}`} title="Delete this lead?" message={`${l.firstName} ${l.lastName} and all related notes, calls, emails and appointments will be permanently deleted.`} /></td>
                   </tr>
                 );
               })}
