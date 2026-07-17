@@ -153,6 +153,20 @@ export class FormsService {
 
     await this.prisma.formSubmission.update({ where: { id: submission.id }, data: { leadId: lead.id } });
 
+    // Auto-create a follow-up task so the panel's Tasks page reflects new leads
+    // (mirrors the GHL-side task). System-generated → no author. Best-effort:
+    // a task-insert failure must never roll back a saved lead.
+    await this.prisma.followUpTask
+      .create({
+        data: {
+          leadId: lead.id,
+          title: `Follow up with new ${def.label} lead: ${dto.firstName} ${dto.lastName}`.trim(),
+          dueAt: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+          status: "OPEN",
+        },
+      })
+      .catch(() => undefined);
+
     await this.audit.log({ action: "form.submitted", entityType: "lead", entityId: lead.id, metadata: { source, blockedFields }, ipAddress: ctx.ip });
     await this.audit.log({ action: "lead.created", entityType: "lead", entityId: lead.id });
 
