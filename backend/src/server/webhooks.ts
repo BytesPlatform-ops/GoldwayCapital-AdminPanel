@@ -3,6 +3,7 @@ import type { PrismaService } from "@/db/prisma";
 import type { AppConfigService } from "@/lib/config";
 import type { AuditService } from "@/server/audit";
 import { UnauthorizedException } from "@/lib/errors";
+import { parseGhlAppointment, isGhlAppointmentEvent, type ParsedGhlAppointment } from "./ghl-webhook-parser";
 
 export interface WebhookAuth {
   signature?: string | null; // HMAC signature header (x-ghl-signature)
@@ -48,6 +49,15 @@ export class WebhooksService {
     return id ? String(id) : null;
   }
 
+  /**
+   * A human-readable event type for the WebhookEvent row. Real GHL booking
+   * payloads carry no `type`/`event` field, so label them from their shape
+   * rather than the opaque "unknown".
+   */
+  private eventType(payload: any): string {
+    return String(payload?.type ?? payload?.event ?? (isGhlAppointmentEvent(payload) ? "appointment.booked" : "unknown"));
+  }
+
   async handleGhl(payload: any, auth: WebhookAuth) {
     const raw = JSON.stringify(payload ?? {});
     const valid = this.authenticate(raw, auth);
@@ -63,77 +73,83 @@ export class WebhooksService {
     }
 
     const event = await this.prisma.webhookEvent.create({
-      data: { provider: "ghl", eventType: String(payload?.type ?? payload?.event ?? "unknown"), payload, signatureValid: valid, processed: false },
+      data: { provider: "ghl", eventType: this.eventType(payload), payload, signatureValid: valid, processed: false },
     });
     if (!valid) throw new UnauthorizedException("Invalid or missing webhook authentication");
 
     try {
-      const appt = payload?.appointment ?? (this.isAppointmentEvent(payload) ? payload : null);
-      const contactId = appt?.contactId ?? payload?.contactId ?? payload?.contact?.id;
-      if (contactId) {
-        const lead = await this.prisma.lead.findFirst({ where: { ghlContactId: String(contactId) } });
-        if (lead) {
-          // Calendar booking (from the public consultation links) → local Appointment
-          // record so it surfaces on the Appointments page and moves the lead forward.
-          if (appt) await this.upsertAppointment(lead.id, lead.formName, appt);
-          const stage = this.mapStage(payload);
-          const nextStage = appt ? "APPOINTMENT_SET" : stage;
-          await this.prisma.lead.update({
-            where: { id: lead.id },
-            data: { ghlSyncStatus: "SYNCED", ghlLastSyncAt: new Date(), ...(nextStage ? { pipelineStage: nextStage } : {}) },
-          });
+      const appt = parseGhlAppointment(payload);
+      const contactId = appt?.contactId ?? payload?.contact_id ?? payload?.contactId ?? payload?.contact?.id ?? null;
+      const email = typeof payload?.email === "string" && payload.email.trim() ? payload.email.trim() : null;
+
+      let lead = contactId
+        ? await this.prisma.lead.findFirst({ where: { ghlContactId: String(contactId) } })
+        : null;
+
+      // (B) Secondary match on email when the contact id resolved no lead — recovers
+      // bookings whose GHL contact id drifted from what we synced. Plus-addressed
+      // emails are distinct strings, so this never conflates separate contacts.
+      if (!lead && email) {
+        lead = await this.prisma.lead.findFirst({
+          where: { email: { equals: email, mode: "insensitive" } },
+          orderBy: { createdAt: "desc" },
+        });
+        // Backfill the GHL contact id so future events for this lead match directly —
+        // but only when the lead has none, never overwriting an existing mapping.
+        if (lead && contactId && !lead.ghlContactId) {
+          await this.prisma.lead.update({ where: { id: lead.id }, data: { ghlContactId: String(contactId) } });
         }
       }
-      await this.prisma.webhookEvent.update({ where: { id: event.id }, data: { processed: true } });
-      await this.audit.log({ action: "ghl.webhook_received", entityType: "webhook", entityId: event.id, metadata: { type: event.eventType } });
+
+      if (lead) {
+        // Calendar booking (from the public consultation links) → local Appointment
+        // record so it surfaces on the Appointments page and moves the lead forward.
+        if (appt) await this.upsertAppointment(lead, appt);
+        const nextStage = appt ? "APPOINTMENT_SET" : this.mapStage(payload);
+        await this.prisma.lead.update({
+          where: { id: lead.id },
+          data: { ghlSyncStatus: "SYNCED", ghlLastSyncAt: new Date(), ...(nextStage ? { pipelineStage: nextStage } : {}) },
+        });
+        await this.prisma.webhookEvent.update({ where: { id: event.id }, data: { processed: true } });
+        await this.audit.log({ action: "ghl.webhook_received", entityType: "webhook", entityId: event.id, metadata: { type: event.eventType } });
+      } else if (appt) {
+        // (C) A real booking we could not tie to any lead (neither contact id nor
+        // email matched). Do NOT silently mark it processed — that is exactly what
+        // hid the original bug. Leave a visible trace on the event + an audit warning.
+        const trace = `unlinked_appointment: no lead matched contactId=${contactId ?? "∅"} email=${email ?? "∅"}`;
+        await this.prisma.webhookEvent.update({ where: { id: event.id }, data: { processingError: trace } });
+        await this.audit.log({
+          action: "ghl.webhook_unlinked_appointment",
+          entityType: "webhook",
+          entityId: event.id,
+          metadata: { type: event.eventType, contactId: contactId ?? null },
+        });
+      } else {
+        // Non-appointment event with no lead to act on — nothing to mirror.
+        await this.prisma.webhookEvent.update({ where: { id: event.id }, data: { processed: true } });
+        await this.audit.log({ action: "ghl.webhook_received", entityType: "webhook", entityId: event.id, metadata: { type: event.eventType } });
+      }
     } catch (err) {
       await this.prisma.webhookEvent.update({ where: { id: event.id }, data: { processingError: String(err) } });
     }
     return { ok: true };
   }
 
-  /** True when the GHL event describes a calendar appointment/booking. */
-  private isAppointmentEvent(payload: any): boolean {
-    const t = String(payload?.type ?? payload?.event ?? "").toLowerCase();
-    return t.includes("appointment") || !!payload?.appointment || !!(payload?.startTime && payload?.calendarId);
-  }
-
-  /** Map a GHL appointmentStatus string onto our AppointmentStatus enum. */
-  private mapAppointmentStatus(raw: any): "SCHEDULED" | "COMPLETED" | "NO_SHOW" | "CANCELLED" {
-    switch (String(raw ?? "").toLowerCase()) {
-      case "cancelled":
-      case "canceled":
-        return "CANCELLED";
-      case "showed":
-      case "completed":
-        return "COMPLETED";
-      case "noshow":
-      case "no_show":
-      case "no-show":
-        return "NO_SHOW";
-      default:
-        return "SCHEDULED";
-    }
-  }
-
   /** Create or update the local Appointment mirror of a GHL calendar booking. */
-  private async upsertAppointment(leadId: string, formName: string, appt: any) {
-    const ghlId = appt?.id ?? appt?.appointmentId ?? appt?.eventId;
-    const start = appt?.startTime ?? appt?.selectedSlot ?? appt?.appointmentTime;
-    const scheduledAt = start ? new Date(start) : null;
-    if (!scheduledAt || isNaN(scheduledAt.getTime())) return; // no usable time → skip
-    const serviceType = String(appt?.title ?? appt?.calendarName ?? formName ?? "Consultation");
-    const status = this.mapAppointmentStatus(appt?.appointmentStatus ?? appt?.status);
-    const location = appt?.address ?? appt?.location ?? appt?.meetingLocation ?? null;
+  private async upsertAppointment(lead: { id: string; formName: string }, appt: ParsedGhlAppointment) {
+    if (!appt.scheduledAt) return; // no usable time → skip
+    // calendar.calendarName drives the service; fall back to the lead's originating form.
+    const serviceType = appt.serviceName ?? lead.formName ?? "Consultation";
+    const base = { scheduledAt: appt.scheduledAt, status: appt.status, location: appt.location, serviceType };
 
-    if (ghlId) {
+    if (appt.ghlAppointmentId) {
       await this.prisma.appointment.upsert({
-        where: { ghlAppointmentId: String(ghlId) },
-        create: { leadId, serviceType, scheduledAt, status, location, ghlAppointmentId: String(ghlId) },
-        update: { scheduledAt, status, location, serviceType },
+        where: { ghlAppointmentId: appt.ghlAppointmentId },
+        create: { leadId: lead.id, ...base, ghlAppointmentId: appt.ghlAppointmentId },
+        update: base,
       });
     } else {
-      await this.prisma.appointment.create({ data: { leadId, serviceType, scheduledAt, status, location } });
+      await this.prisma.appointment.create({ data: { leadId: lead.id, ...base } });
     }
   }
 
