@@ -19,12 +19,12 @@ export default async function TasksPage() {
         <div className="card text-center text-gray-500">No open tasks.</div>
       ) : (
         <>
-          <div className="hidden overflow-x-auto rounded-xl border border-navy-100 bg-white shadow-sm md:block">
-            <table className="w-full text-sm">
-              <thead className="border-b border-navy-100 bg-navy-50 text-left text-xs uppercase text-navy-700">
-                <tr><th className="px-4 py-3">Task</th><th className="px-4 py-3">Lead</th><th className="px-4 py-3">Assigned</th><th className="px-4 py-3">Due</th><th className="px-4 py-3"></th></tr>
+          <div className="data-table hidden md:block">
+            <table>
+              <thead>
+                <tr><th>Task</th><th>Lead</th><th>Assigned</th><th>Due</th><th></th></tr>
               </thead>
-              <tbody className="divide-y divide-navy-50">
+              <tbody>
                 {tasks.map((t) => {
                   const overdue = t.dueAt && new Date(t.dueAt) < now;
                   return (
