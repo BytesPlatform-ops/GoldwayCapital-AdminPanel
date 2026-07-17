@@ -56,16 +56,16 @@ export default async function LeadsPage({ searchParams }: { searchParams: { q?: 
       ) : (
         <>
           {/* Desktop / tablet: table */}
-          <div className="hidden overflow-x-auto rounded-xl border border-navy-100 bg-white shadow-sm md:block">
-            <table className="w-full text-sm">
-              <thead className="border-b border-navy-100 bg-navy-50 text-left text-xs uppercase text-navy-700">
-                <tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Contact</th><th className="px-4 py-3">Source</th><th className="px-4 py-3">Stage</th><th className="px-4 py-3">Assigned</th><th className="px-4 py-3">Next follow-up</th><th className="px-4 py-3">GHL</th><th className="px-4 py-3">Created</th><th className="px-4 py-3"></th></tr>
+          <div className="data-table hidden md:block">
+            <table>
+              <thead>
+                <tr><th>Name</th><th>Contact</th><th>Source</th><th>Stage</th><th>Assigned</th><th>Next follow-up</th><th>GHL</th><th>Created</th><th></th></tr>
               </thead>
-              <tbody className="divide-y divide-navy-50">
+              <tbody>
                 {leads.map((l) => {
                   const overdue = l.nextFollowUpAt && new Date(l.nextFollowUpAt) < new Date() && l.pipelineStage !== "CLOSED";
                   return (
-                    <tr key={l.id} className="hover:bg-navy-50/40">
+                    <tr key={l.id}>
                       <td className="px-4 py-3"><Link href={`/admin/leads/${l.id}`} className="font-semibold text-navy-700 hover:underline">{l.firstName} {l.lastName}</Link></td>
                       <td className="px-4 py-3 text-gray-600"><div>{l.email}</div><div className="text-xs text-gray-400">{l.phone}</div></td>
                       <td className="px-4 py-3 text-gray-600">{SOURCE_LABELS[l.leadSource] ?? l.leadSource}</td>
