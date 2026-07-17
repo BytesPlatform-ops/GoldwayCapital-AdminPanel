@@ -43,12 +43,46 @@ export class MiscService {
   }
 
   appointments(service?: string) {
+    // serviceType is a free-form calendar name (e.g. "Final Expense Consultation"),
+    // so filter by a case-insensitive contains rather than an exact slug match.
+    const term = service?.trim();
     return this.prisma.appointment.findMany({
-      where: { ...(service ? { serviceType: service } : {}), scheduledAt: { gte: new Date(Date.now() - 86400000) } },
+      where: {
+        ...(term ? { serviceType: { contains: term, mode: "insensitive" } } : {}),
+        scheduledAt: { gte: new Date(Date.now() - 86400000) },
+      },
       orderBy: { scheduledAt: "asc" },
       include: { lead: { select: { id: true, firstName: true, lastName: true, soaStatus: true } } },
       take: 200,
     });
+  }
+
+  /** Distinct service names actually present — drives the Appointments filter dropdown. */
+  async appointmentServiceTypes(): Promise<string[]> {
+    const rows = await this.prisma.appointment.findMany({
+      distinct: ["serviceType"],
+      select: { serviceType: true },
+      orderBy: { serviceType: "asc" },
+    });
+    return rows.map((r) => r.serviceType);
+  }
+
+  /** Full detail for a single appointment, including its lead. */
+  async appointment(id: string) {
+    const appt = await this.prisma.appointment.findUnique({
+      where: { id },
+      include: {
+        lead: {
+          select: {
+            id: true, firstName: true, lastName: true, email: true, phone: true,
+            city: true, state: true, zipCode: true, soaStatus: true,
+            pipelineStage: true, leadSource: true, ghlContactId: true,
+          },
+        },
+      },
+    });
+    if (!appt) throw new NotFoundException("Appointment not found");
+    return appt;
   }
 
   recruiting() {
