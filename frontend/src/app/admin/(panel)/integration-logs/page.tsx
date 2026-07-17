@@ -16,13 +16,13 @@ export default async function IntegrationLogsPage() {
   return (
     <div>
       <SectionHeader title="Integration Logs" subtitle="Every outbound GHL / social / email call, plus inbound webhooks." />
-      <div className="card mb-6 overflow-x-auto p-0">
+      <div className="data-table mb-6">
         <div className="border-b border-navy-100 px-4 py-3 font-bold text-navy-800">Recent Integration Calls</div>
-        <table className="w-full text-sm">
-          <thead className="bg-navy-50 text-left text-xs uppercase text-navy-700">
-            <tr><th className="px-4 py-2">Provider</th><th className="px-4 py-2">Operation</th><th className="px-4 py-2">Status</th><th className="px-4 py-2">Related</th><th className="px-4 py-2">Duration</th><th className="px-4 py-2">When</th></tr>
+        <table>
+          <thead>
+            <tr><th>Provider</th><th>Operation</th><th>Status</th><th>Related</th><th>Duration</th><th>When</th></tr>
           </thead>
-          <tbody className="divide-y divide-navy-50">
+          <tbody>
             {calls.map((c) => (
               <tr key={c.id}>
                 <td className="px-4 py-2 uppercase text-gray-500">{c.provider}</td>

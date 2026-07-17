@@ -11,12 +11,12 @@ export default async function AuditLogsPage() {
   return (
     <div>
       <SectionHeader title="Audit Logs" subtitle="Append-only trail of every significant action." />
-      <div className="card overflow-x-auto p-0">
-        <table className="w-full text-sm">
-          <thead className="border-b border-navy-100 bg-navy-50 text-left text-xs uppercase text-navy-700">
-            <tr><th className="px-4 py-3">When</th><th className="px-4 py-3">Actor</th><th className="px-4 py-3">Action</th><th className="px-4 py-3">Entity</th><th className="px-4 py-3">Detail</th></tr>
+      <div className="data-table">
+        <table>
+          <thead>
+            <tr><th>When</th><th>Actor</th><th>Action</th><th>Entity</th><th>Detail</th></tr>
           </thead>
-          <tbody className="divide-y divide-navy-50">
+          <tbody>
             {logs.map((l) => (
               <tr key={l.id}>
                 <td className="px-4 py-2 text-gray-400">{formatDateTime(l.createdAt)}</td>

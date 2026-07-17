@@ -18,12 +18,12 @@ export default async function RecruitingPage() {
         <div className="card text-center text-gray-500">No recruiting inquiries yet.</div>
       ) : (
         <>
-          <div className="hidden overflow-x-auto rounded-xl border border-navy-100 bg-white shadow-sm md:block">
-            <table className="w-full text-sm">
-              <thead className="border-b border-navy-100 bg-navy-50 text-left text-xs uppercase text-navy-700">
-                <tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Contact</th><th className="px-4 py-3">City / State</th><th className="px-4 py-3">Received</th><th className="px-4 py-3">Status</th></tr>
+          <div className="data-table hidden md:block">
+            <table>
+              <thead>
+                <tr><th>Name</th><th>Contact</th><th>City / State</th><th>Received</th><th>Status</th></tr>
               </thead>
-              <tbody className="divide-y divide-navy-50">
+              <tbody>
                 {leads.map((l) => (
                   <tr key={l.id}>
                     <td className="px-4 py-3"><Link href={`/admin/leads/${l.id}`} className="font-semibold text-navy-700 hover:underline">{l.firstName} {l.lastName}</Link></td>

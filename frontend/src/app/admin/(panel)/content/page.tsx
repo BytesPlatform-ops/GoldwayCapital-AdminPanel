@@ -17,12 +17,12 @@ export default async function ContentPage() {
   return (
     <div>
       <SectionHeader title="Content" subtitle="Resource Center articles — write once, publish to the site + social." action={<Link href="/admin/content/new" className="btn-gold text-sm">+ New article</Link>} />
-      <div className="card overflow-x-auto p-0">
-        <table className="w-full text-sm">
-          <thead className="border-b border-navy-100 bg-navy-50 text-left text-xs uppercase text-navy-700">
-            <tr><th className="px-4 py-3">Title</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Compliance</th><th className="px-4 py-3">Social</th><th className="px-4 py-3">Updated</th></tr>
+      <div className="data-table">
+        <table>
+          <thead>
+            <tr><th>Title</th><th>Status</th><th>Compliance</th><th>Social</th><th>Updated</th></tr>
           </thead>
-          <tbody className="divide-y divide-navy-50">
+          <tbody>
             {posts.map((p) => (
               <tr key={p.id}>
                 <td className="px-4 py-3"><Link href={`/admin/content/${p.id}/edit`} className="font-semibold text-navy-700 hover:underline">{p.title}</Link>{p.medicareSensitive && <span className="ml-2 badge bg-amber-100 text-amber-800">Medicare</span>}</td>
