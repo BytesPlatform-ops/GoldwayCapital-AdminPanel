@@ -18,6 +18,8 @@ export default async function DashboardPage() {
     apiGet<BySource[]>("/dashboard/leads-by-source"),
     apiGet<Recent[]>("/dashboard/recent-activity"),
   ]);
+  const maxSource = Math.max(1, ...bySource.map((s) => s.count));
+  const totalSource = bySource.reduce((sum, s) => sum + s.count, 0);
 
   return (
     <div>
@@ -35,16 +37,28 @@ export default async function DashboardPage() {
 
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
         <div className="card lg:col-span-1">
-          <h2 className="mb-4 text-lg font-bold text-navy-800">Leads by Source</h2>
-          <ul className="space-y-3">
-            {bySource.map((s) => (
-              <li key={s.source} className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">{s.label}</span>
-                <span className="badge bg-navy-50 text-navy-700">{s.count}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-4 text-xs text-gray-400">Contacted: {summary.contacted} · Content pending review: {summary.pendingContent}</div>
+          <div className="mb-5 flex items-baseline justify-between">
+            <h2 className="text-lg font-bold text-navy-800">Leads by Source</h2>
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">{totalSource} total</span>
+          </div>
+          <div className="space-y-4">
+            {bySource.map((s) => {
+              const pct = Math.round((s.count / maxSource) * 100);
+              const share = totalSource ? Math.round((s.count / totalSource) * 100) : 0;
+              return (
+                <div key={s.source}>
+                  <div className="mb-1.5 flex items-baseline justify-between text-sm">
+                    <span className="font-medium text-navy-700">{s.label}</span>
+                    <span className="tabular-nums text-gray-500"><span className="font-bold text-navy-800">{s.count}</span> · {share}%</span>
+                  </div>
+                  <div className="h-2.5 w-full overflow-hidden rounded-full bg-navy-50">
+                    <div className="h-full rounded-full bg-gradient-to-r from-navy-600 via-navy-600 to-gold-500 transition-all duration-700 ease-out" style={{ width: `${Math.max(pct, 4)}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-5 border-t border-navy-50 pt-3 text-xs text-gray-400">Contacted: {summary.contacted} · Content pending review: {summary.pendingContent}</div>
         </div>
 
         <div className="card lg:col-span-2">
