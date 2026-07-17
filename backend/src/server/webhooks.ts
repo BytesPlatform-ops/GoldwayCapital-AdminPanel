@@ -68,14 +68,19 @@ export class WebhooksService {
     if (!valid) throw new UnauthorizedException("Invalid or missing webhook authentication");
 
     try {
-      const contactId = payload?.contactId ?? payload?.contact?.id;
+      const appt = payload?.appointment ?? (this.isAppointmentEvent(payload) ? payload : null);
+      const contactId = appt?.contactId ?? payload?.contactId ?? payload?.contact?.id;
       if (contactId) {
         const lead = await this.prisma.lead.findFirst({ where: { ghlContactId: String(contactId) } });
         if (lead) {
+          // Calendar booking (from the public consultation links) → local Appointment
+          // record so it surfaces on the Appointments page and moves the lead forward.
+          if (appt) await this.upsertAppointment(lead.id, lead.formName, appt);
           const stage = this.mapStage(payload);
+          const nextStage = appt ? "APPOINTMENT_SET" : stage;
           await this.prisma.lead.update({
             where: { id: lead.id },
-            data: { ghlSyncStatus: "SYNCED", ghlLastSyncAt: new Date(), ...(stage ? { pipelineStage: stage } : {}) },
+            data: { ghlSyncStatus: "SYNCED", ghlLastSyncAt: new Date(), ...(nextStage ? { pipelineStage: nextStage } : {}) },
           });
         }
       }
@@ -85,6 +90,51 @@ export class WebhooksService {
       await this.prisma.webhookEvent.update({ where: { id: event.id }, data: { processingError: String(err) } });
     }
     return { ok: true };
+  }
+
+  /** True when the GHL event describes a calendar appointment/booking. */
+  private isAppointmentEvent(payload: any): boolean {
+    const t = String(payload?.type ?? payload?.event ?? "").toLowerCase();
+    return t.includes("appointment") || !!payload?.appointment || !!(payload?.startTime && payload?.calendarId);
+  }
+
+  /** Map a GHL appointmentStatus string onto our AppointmentStatus enum. */
+  private mapAppointmentStatus(raw: any): "SCHEDULED" | "COMPLETED" | "NO_SHOW" | "CANCELLED" {
+    switch (String(raw ?? "").toLowerCase()) {
+      case "cancelled":
+      case "canceled":
+        return "CANCELLED";
+      case "showed":
+      case "completed":
+        return "COMPLETED";
+      case "noshow":
+      case "no_show":
+      case "no-show":
+        return "NO_SHOW";
+      default:
+        return "SCHEDULED";
+    }
+  }
+
+  /** Create or update the local Appointment mirror of a GHL calendar booking. */
+  private async upsertAppointment(leadId: string, formName: string, appt: any) {
+    const ghlId = appt?.id ?? appt?.appointmentId ?? appt?.eventId;
+    const start = appt?.startTime ?? appt?.selectedSlot ?? appt?.appointmentTime;
+    const scheduledAt = start ? new Date(start) : null;
+    if (!scheduledAt || isNaN(scheduledAt.getTime())) return; // no usable time → skip
+    const serviceType = String(appt?.title ?? appt?.calendarName ?? formName ?? "Consultation");
+    const status = this.mapAppointmentStatus(appt?.appointmentStatus ?? appt?.status);
+    const location = appt?.address ?? appt?.location ?? appt?.meetingLocation ?? null;
+
+    if (ghlId) {
+      await this.prisma.appointment.upsert({
+        where: { ghlAppointmentId: String(ghlId) },
+        create: { leadId, serviceType, scheduledAt, status, location, ghlAppointmentId: String(ghlId) },
+        update: { scheduledAt, status, location, serviceType },
+      });
+    } else {
+      await this.prisma.appointment.create({ data: { leadId, serviceType, scheduledAt, status, location } });
+    }
   }
 
   private mapStage(payload: any): any {

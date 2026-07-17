@@ -317,6 +317,9 @@ model Appointment {
   status      AppointmentStatus @default(SCHEDULED)
   location    String?
   notes       String?
+  // GHL calendar appointment id — set for bookings synced in via webhook; lets us
+  // upsert (create once, update on reschedule/cancel) instead of duplicating.
+  ghlAppointmentId String?      @unique
   createdAt   DateTime          @default(now())
 
   @@index([scheduledAt])
