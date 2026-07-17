@@ -35,12 +35,21 @@ export function SyncBadge({ status }: { status: string }) {
 }
 
 export function StatCard({ label, value, tone = "navy", hint }: { label: string; value: number | string; tone?: "navy" | "gold" | "red" | "green"; hint?: string }) {
-  const toneClass = { navy: "text-navy-700", gold: "text-gold-600", red: "text-red-600", green: "text-green-600" }[tone];
+  const tones = {
+    navy: { text: "text-navy-700", bar: "from-navy-600 to-navy-800", glow: "bg-navy-100" },
+    gold: { text: "text-gold-600", bar: "from-gold-500 to-gold-700", glow: "bg-gold-100" },
+    red: { text: "text-red-600", bar: "from-red-400 to-red-600", glow: "bg-red-100" },
+    green: { text: "text-green-600", bar: "from-green-500 to-green-600", glow: "bg-green-100" },
+  }[tone];
   return (
-    <div className="card">
-      <div className="text-sm font-medium text-gray-500">{label}</div>
-      <div className={`mt-1 text-3xl font-bold ${toneClass}`}>{value}</div>
-      {hint && <div className="mt-1 text-xs text-gray-400">{hint}</div>}
+    <div className="group relative overflow-hidden rounded-xl border border-navy-100 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md hover:shadow-navy-100">
+      <div className={`absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b ${tones.bar}`} />
+      <div className={`pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full ${tones.glow} opacity-50 blur-2xl transition-opacity duration-300 group-hover:opacity-80`} />
+      <div className="relative pl-2.5">
+        <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">{label}</div>
+        <div className={`mt-2 text-3xl font-bold tabular-nums ${tones.text}`}>{value}</div>
+        {hint && <div className="mt-1 text-xs text-gray-400">{hint}</div>}
+      </div>
     </div>
   );
 }
