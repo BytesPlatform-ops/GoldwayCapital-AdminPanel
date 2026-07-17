@@ -176,7 +176,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
           <div className="card">
             <h2 className="mb-3 text-lg font-bold text-navy-800">Ownership &amp; Follow-up</h2>
             <dl className="space-y-2 text-sm">
-              <Row label="Assigned to" value={lead.assignedTo?.name} />
+              <Row label="Assigned to" value={lead.assignedTo?.name} alwaysShow />
               <Row label="Last contacted" value={lead.lastContactedAt ? formatDate(lead.lastContactedAt) : null} />
             </dl>
             <div className="mt-3">
@@ -200,7 +200,10 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
   );
 }
 
-function Row({ label, value }: { label: string; value?: string | null }) {
+// Empty rows are hidden to keep the panel uncluttered. Pass `alwaysShow` for
+// fields worth keeping visible even when blank (e.g. Assigned to — used later).
+function Row({ label, value, alwaysShow }: { label: string; value?: string | null; alwaysShow?: boolean }) {
+  if (!value && !alwaysShow) return null;
   return (
     <div className="flex justify-between gap-4">
       <dt className="text-gray-500">{label}</dt>

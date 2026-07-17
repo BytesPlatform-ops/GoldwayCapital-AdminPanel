@@ -111,11 +111,13 @@ export default async function AppointmentDetailPage({ params }: { params: { id: 
   );
 }
 
+// Empty rows are hidden to keep the panel uncluttered; core fields always carry a value.
 function Row({ label, value }: { label: string; value?: string | null }) {
+  if (!value) return null;
   return (
     <div className="flex justify-between gap-4">
       <dt className="text-gray-500">{label}</dt>
-      <dd className="text-right font-medium text-ink">{value || <span className="text-gray-300">—</span>}</dd>
+      <dd className="text-right font-medium text-ink">{value}</dd>
     </div>
   );
 }
