@@ -16,6 +16,32 @@ interface LeadDetail {
   callLogs: { id: string; outcome: string; notes?: string; followUpNeeded: boolean; complianceFlagged: boolean; occurredAt: string; author: { name: string } }[];
   emailLogs: { id: string; subject: string; direction: string; status: string; createdAt: string }[];
   appointments: { id: string; serviceType: string; scheduledAt: string; status: string }[];
+  formSubmissions?: {
+    id: string; formName: string; leadSource: string; blockedFields: string[]; createdAt: string;
+    sanitizedPayload?: { formAnswers?: Record<string, unknown> };
+  }[];
+}
+
+// Human labels for the whitelisted vertical form-answer keys (see backend lib/lead-forms.ts).
+// Unknown keys fall back to a de-camelCased label, so new fields still render.
+const ANSWER_LABELS: Record<string, string> = {
+  county: "County", turning65: "Turning 65", currentlyEnrolledMedicare: "Currently enrolled in Medicare",
+  medicareHelpWith: "Needs help with", medicareBiggestQuestion: "Biggest question",
+  ageRange: "Age range", finalExpenseCoverage: "Has final expense coverage", finalExpenseMostImportant: "Most important",
+  age62OrOlder: "Age 62 or older", primaryResidence: "Primary residence", estimatedHomeValue: "Estimated home value",
+  estimatedMortgageBalance: "Estimated mortgage balance", reverseMortgageMainGoal: "Main goal", reverseMortgageBiggestConcern: "Biggest concern",
+  realEstateSituation: "Real estate situation", executorOrHeir: "Executor or heir", realEstateTimeline: "Timeline", realEstateDetails: "Details",
+  stateOfResidence: "State of residence", insuranceLicense: "Holds insurance license", licensedLines: "Licensed lines",
+  ahipCertified: "AHIP certified", recruitingBackground: "Background",
+};
+
+function labelFor(key: string): string {
+  return ANSWER_LABELS[key] ?? key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase()).trim();
+}
+
+function formatAnswer(value: unknown): string {
+  if (Array.isArray(value)) return value.join(", ");
+  return String(value ?? "");
 }
 
 export default async function LeadDetailPage({ params }: { params: { id: string } }) {
@@ -27,6 +53,8 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
     throw e;
   }
   const isMedicare = lead.leadSource === "MEDICARE";
+  const formAnswers = lead.formSubmissions?.[0]?.sanitizedPayload?.formAnswers ?? {};
+  const answerEntries = Object.entries(formAnswers).filter(([, v]) => v !== null && v !== "" && !(Array.isArray(v) && v.length === 0));
 
   return (
     <div>
@@ -48,6 +76,19 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
           <div className="card">
             <h2 className="mb-3 text-lg font-bold text-navy-800">Pipeline Stage</h2>
             <StageChanger id={lead.id} current={lead.pipelineStage} />
+          </div>
+
+          <div className="card">
+            <h2 className="mb-3 text-lg font-bold text-navy-800">Form Answers</h2>
+            {answerEntries.length > 0 ? (
+              <dl className="space-y-2 text-sm">
+                {answerEntries.map(([key, value]) => (
+                  <Row key={key} label={labelFor(key)} value={formatAnswer(value)} />
+                ))}
+              </dl>
+            ) : (
+              <p className="text-sm text-gray-400">No form answers captured for this submission.</p>
+            )}
           </div>
 
           {isMedicare && (
