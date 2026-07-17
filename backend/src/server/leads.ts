@@ -63,6 +63,13 @@ export class LeadsService {
         emailLogs: { orderBy: { createdAt: "desc" } },
         followUpTasks: { orderBy: { createdAt: "desc" }, include: { assignedTo: { select: { name: true } } } },
         appointments: { orderBy: { scheduledAt: "desc" } },
+        // Latest sanitized submission carries the vertical form answers (stored on
+        // FormSubmission, never on Lead). The detail UI renders these per vertical.
+        formSubmissions: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { id: true, formName: true, leadSource: true, blockedFields: true, createdAt: true, sanitizedPayload: true },
+        },
       },
     });
     if (!lead) throw new NotFoundException("Lead not found");
