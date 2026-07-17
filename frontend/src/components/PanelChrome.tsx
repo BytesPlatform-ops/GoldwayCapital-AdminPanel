@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { logoutAction } from "@/lib/actions";
 import NotificationBell from "@/components/NotificationBell";
+import IdleTimeout from "@/components/IdleTimeout";
 
 const NAV = [
   { href: "/admin/dashboard", label: "Dashboard", icon: "▦" },
@@ -61,6 +62,7 @@ export default function PanelChrome({ me, children }: { me: { name: string; role
 
   return (
     <div className="flex min-h-screen bg-cream">
+      <IdleTimeout />
       {/* Desktop sidebar */}
       <aside className="hidden w-64 shrink-0 flex-col bg-navy-700 text-white md:flex">
         <Brand />

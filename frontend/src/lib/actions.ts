@@ -47,6 +47,13 @@ export async function logoutAction() {
   redirect("/admin/login");
 }
 
+/** Same as logoutAction but flags the login page to explain the auto sign-out. */
+export async function inactivityLogout() {
+  await authFetch("/logout", { method: "POST" }).catch(() => undefined);
+  cookies().delete(SESSION_COOKIE);
+  redirect("/admin/login?timeout=1");
+}
+
 /** Generic authed mutation used by admin client components. Hits the backend /api/admin. */
 export async function apiMutate(path: string, method: string, body?: unknown, revalidate?: string) {
   const res = await fetch(`${apiBase()}/api/admin${path}`, {
