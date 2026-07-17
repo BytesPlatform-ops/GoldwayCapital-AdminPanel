@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { formatDateTime } from "@/lib/format";
 import { useRouter } from "next/navigation";
 import { apiMutate } from "@/lib/actions";
 
@@ -76,7 +77,7 @@ function TestButton({ path, label, onResult }: { path: string; label: string; on
 function LastLog({ log }: { log: Log }) {
   if (!log) return <span className="text-gray-300">no calls yet</span>;
   const color = log.status === "failed" ? "text-red-600" : log.status === "success" ? "text-green-600" : "text-amber-600";
-  return <span className={`text-xs ${color}`}>{log.operation} · {log.status} · {new Date(log.createdAt).toLocaleString()}</span>;
+  return <span className={`text-xs ${color}`}>{log.operation} · {log.status} · {formatDateTime(log.createdAt)}</span>;
 }
 
 export function IntegrationsClient({ status, logs }: { status: IntegrationStatus; logs: RecentLog[] }) {
@@ -186,7 +187,7 @@ export function IntegrationsClient({ status, logs }: { status: IntegrationStatus
             <Row label="Webhook secret"><Dot ok={status.webhooks.secretConfigured} warn /> {status.webhooks.secretConfigured ? "configured" : "not set (dev accepts all)"}</Row>
             <Row label="Last webhook received">
               {status.webhooks.last
-                ? <span className="text-xs">{status.webhooks.last.eventType} · {status.webhooks.last.processed ? "processed" : "pending"} · {new Date(status.webhooks.last.createdAt).toLocaleString()}</span>
+                ? <span className="text-xs">{status.webhooks.last.eventType} · {status.webhooks.last.processed ? "processed" : "pending"} · {formatDateTime(status.webhooks.last.createdAt)}</span>
                 : <span className="text-gray-300">none yet</span>}
             </Row>
           </ul>
@@ -213,7 +214,7 @@ export function IntegrationsClient({ status, logs }: { status: IntegrationStatus
                     <td>{l.operation}</td>
                     <td className={l.status === "failed" ? "text-red-600" : l.status === "success" ? "text-green-600" : "text-amber-600"}>{l.status}</td>
                     <td className="text-xs text-gray-500">{l.relatedType ? `${l.relatedType}:${(l.relatedId ?? "").slice(0, 8)}` : "—"}</td>
-                    <td className="text-xs text-gray-500">{new Date(l.createdAt).toLocaleString()}</td>
+                    <td className="text-xs text-gray-500">{formatDateTime(l.createdAt)}</td>
                     <td>{l.status === "failed" && <RetryLog id={l.id} onResult={showResult} />}</td>
                   </tr>
                 ))}

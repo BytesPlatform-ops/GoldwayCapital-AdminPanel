@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatDate } from "@/lib/format";
 import { apiGet } from "@/lib/api";
 import { SectionHeader } from "@/components/admin-ui";
 import { RecruitingStatus } from "./RecruitingStatus";
@@ -27,7 +28,7 @@ export default async function RecruitingPage() {
                   <td className="px-4 py-3"><Link href={`/admin/leads/${l.id}`} className="font-semibold text-navy-700 hover:underline">{l.firstName} {l.lastName}</Link></td>
                   <td className="px-4 py-3 text-gray-600"><div>{l.email}</div><div className="text-xs text-gray-400">{l.phone}</div></td>
                   <td className="px-4 py-3 text-gray-600">{[l.city, l.state].filter(Boolean).join(", ") || "—"}</td>
-                  <td className="px-4 py-3 text-gray-400">{new Date(l.createdAt).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-gray-400">{formatDate(l.createdAt)}</td>
                   <td className="px-4 py-3"><RecruitingStatus id={l.id} current={l.recruitingStatus ?? "NEW"} /></td>
                 </tr>
               ))}

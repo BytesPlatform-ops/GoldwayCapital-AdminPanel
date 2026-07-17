@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatDateTime } from "@/lib/format";
 import { apiGet } from "@/lib/api";
 import { SectionHeader } from "@/components/admin-ui";
 
@@ -35,7 +36,7 @@ export default async function AppointmentsPage({ searchParams }: { searchParams:
             <tbody className="divide-y divide-navy-50">
               {appts.map((a) => (
                 <tr key={a.id}>
-                  <td className="px-4 py-3 font-medium text-navy-700">{new Date(a.scheduledAt).toLocaleString()}</td>
+                  <td className="px-4 py-3 font-medium text-navy-700">{formatDateTime(a.scheduledAt)}</td>
                   <td className="px-4 py-3"><Link href={`/admin/leads/${a.lead.id}`} className="text-navy-600 hover:underline">{a.lead.firstName} {a.lead.lastName}</Link></td>
                   <td className="px-4 py-3 capitalize text-gray-600">{a.serviceType.replace("-", " ")}</td>
                   <td className="px-4 py-3 text-gray-600">{a.status}</td>

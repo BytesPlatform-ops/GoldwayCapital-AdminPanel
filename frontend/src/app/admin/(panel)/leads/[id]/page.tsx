@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { notFound } from "next/navigation";
 import { apiGet, ApiError } from "@/lib/api";
 import { StageBadge, SyncBadge, SOURCE_LABELS } from "@/components/admin-ui";
@@ -105,7 +106,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
             <ul className="mt-4 space-y-3">
               {lead.notes.map((n) => (
                 <li key={n.id} className="rounded-lg border border-navy-50 bg-cream px-4 py-3">
-                  <div className="flex items-center justify-between text-xs text-gray-400"><span>{n.author.name}</span><span>{new Date(n.createdAt).toLocaleString()}</span></div>
+                  <div className="flex items-center justify-between text-xs text-gray-400"><span>{n.author.name}</span><span>{formatDateTime(n.createdAt)}</span></div>
                   <p className="mt-1 text-sm text-ink">{n.body}</p>
                   {n.complianceFlagged && <p className="mt-1 text-xs font-semibold text-amber-700">⚠ Flagged for compliance review.</p>}
                 </li>
@@ -120,7 +121,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
             <ul className="mt-4 space-y-3">
               {lead.callLogs.map((c) => (
                 <li key={c.id} className="rounded-lg border border-navy-50 bg-cream px-4 py-3">
-                  <div className="flex items-center justify-between text-xs text-gray-400"><span className="font-semibold text-navy-700">{c.outcome}{c.followUpNeeded ? " · follow-up needed" : ""}</span><span>{new Date(c.occurredAt).toLocaleString()} · {c.author.name}</span></div>
+                  <div className="flex items-center justify-between text-xs text-gray-400"><span className="font-semibold text-navy-700">{c.outcome}{c.followUpNeeded ? " · follow-up needed" : ""}</span><span>{formatDateTime(c.occurredAt)} · {c.author.name}</span></div>
                   {c.notes && <p className="mt-1 text-sm text-ink">{c.notes}</p>}
                   {c.complianceFlagged && <p className="mt-1 text-xs font-semibold text-amber-700">⚠ Flagged for compliance review.</p>}
                 </li>
@@ -147,7 +148,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
             <h2 className="mb-3 text-lg font-bold text-navy-800">Consent &amp; Attribution</h2>
             <dl className="space-y-2 text-sm">
               <Row label="Consent given" value={lead.consentGiven ? "Yes" : "No"} />
-              <Row label="Consent at" value={lead.consentTimestamp ? new Date(lead.consentTimestamp).toLocaleString() : null} />
+              <Row label="Consent at" value={lead.consentTimestamp ? formatDateTime(lead.consentTimestamp) : null} />
               <Row label="Source page" value={lead.sourcePageUrl} />
               <Row label="UTM source" value={lead.utmSource} />
               <Row label="UTM medium" value={lead.utmMedium} />
@@ -158,7 +159,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
             <h2 className="mb-3 text-lg font-bold text-navy-800">Ownership &amp; Follow-up</h2>
             <dl className="space-y-2 text-sm">
               <Row label="Assigned to" value={lead.assignedTo?.name} />
-              <Row label="Last contacted" value={lead.lastContactedAt ? new Date(lead.lastContactedAt).toLocaleDateString() : null} />
+              <Row label="Last contacted" value={lead.lastContactedAt ? formatDate(lead.lastContactedAt) : null} />
             </dl>
             <div className="mt-3">
               <label className="label">Next follow-up date</label>
@@ -170,7 +171,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
               <h2 className="mb-3 text-lg font-bold text-navy-800">Appointments</h2>
               <ul className="space-y-2 text-sm">
                 {lead.appointments.map((a) => (
-                  <li key={a.id} className="flex items-center justify-between"><span className="capitalize">{a.serviceType}</span><span className="text-gray-500">{new Date(a.scheduledAt).toLocaleString()} · {a.status}</span></li>
+                  <li key={a.id} className="flex items-center justify-between"><span className="capitalize">{a.serviceType}</span><span className="text-gray-500">{formatDateTime(a.scheduledAt)} · {a.status}</span></li>
                 ))}
               </ul>
             </div>

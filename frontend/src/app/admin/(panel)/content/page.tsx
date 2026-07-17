@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatDate } from "@/lib/format";
 import { apiGet } from "@/lib/api";
 import { SectionHeader } from "@/components/admin-ui";
 
@@ -28,7 +29,7 @@ export default async function ContentPage() {
                 <td className="px-4 py-3"><span className={`badge ${STATUS_STYLES[p.status] ?? ""}`}>{p.status.replace(/_/g, " ")}</span></td>
                 <td className="px-4 py-3">{p.compliancePassed ? <span className="text-green-600">✓ pass</span> : <span className="text-red-600">✗ issues</span>}</td>
                 <td className="px-4 py-3 text-gray-500">{p.socialPosts.map((s) => `${s.platform}:${s.status}`).join(", ") || "—"}</td>
-                <td className="px-4 py-3 text-gray-400">{new Date(p.updatedAt).toLocaleDateString()}</td>
+                <td className="px-4 py-3 text-gray-400">{formatDate(p.updatedAt)}</td>
               </tr>
             ))}
             {posts.length === 0 && <tr><td colSpan={5} className="px-4 py-4 text-center text-gray-400">No articles yet.</td></tr>}

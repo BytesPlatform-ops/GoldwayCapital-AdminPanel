@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatDate } from "@/lib/format";
 import { apiGet } from "@/lib/api";
 import { SectionHeader, StageBadge, SyncBadge, SOURCE_LABELS, STAGE_LABELS } from "@/components/admin-ui";
 
@@ -67,9 +68,9 @@ export default async function LeadsPage({ searchParams }: { searchParams: { q?: 
                     <td className="px-4 py-3 text-gray-600">{SOURCE_LABELS[l.leadSource] ?? l.leadSource}</td>
                     <td className="px-4 py-3"><StageBadge stage={l.pipelineStage} /></td>
                     <td className="px-4 py-3 text-gray-600">{l.assignedTo?.name ?? <span className="text-gray-400">—</span>}</td>
-                    <td className="px-4 py-3">{l.nextFollowUpAt ? <span className={overdue ? "font-semibold text-red-600" : "text-gray-600"}>{new Date(l.nextFollowUpAt).toLocaleDateString()}</span> : <span className="text-gray-400">—</span>}</td>
+                    <td className="px-4 py-3">{l.nextFollowUpAt ? <span className={overdue ? "font-semibold text-red-600" : "text-gray-600"}>{formatDate(l.nextFollowUpAt)}</span> : <span className="text-gray-400">—</span>}</td>
                     <td className="px-4 py-3"><SyncBadge status={l.ghlSyncStatus} /></td>
-                    <td className="px-4 py-3 text-gray-400">{new Date(l.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-gray-400">{formatDate(l.createdAt)}</td>
                   </tr>
                 );
               })}

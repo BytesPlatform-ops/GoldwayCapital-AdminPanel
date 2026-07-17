@@ -1,4 +1,5 @@
 import { apiGet } from "@/lib/api";
+import { formatDateTime } from "@/lib/format";
 import { SectionHeader } from "@/components/admin-ui";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +30,7 @@ export default async function IntegrationLogsPage() {
                 <td className="px-4 py-2"><span className={`badge ${S[c.status] ?? ""}`}>{c.status}</span></td>
                 <td className="px-4 py-2 text-xs text-gray-400">{c.relatedType}:{c.relatedId?.slice(0, 8)}</td>
                 <td className="px-4 py-2 text-gray-400">{c.durationMs ?? "—"}ms</td>
-                <td className="px-4 py-2 text-gray-400">{new Date(c.createdAt).toLocaleString()}</td>
+                <td className="px-4 py-2 text-gray-400">{formatDateTime(c.createdAt)}</td>
               </tr>
             ))}
             {calls.length === 0 && <tr><td colSpan={6} className="px-4 py-4 text-center text-gray-400">No integration calls yet.</td></tr>}
@@ -43,7 +44,7 @@ export default async function IntegrationLogsPage() {
             {webhooks.map((w) => (
               <li key={w.id} className="flex items-center justify-between border-b border-navy-50 py-1">
                 <span className="text-navy-700">{w.eventType}</span>
-                <span className="text-xs text-gray-400">{w.signatureValid ? "verified" : "unverified"} · {w.processed ? "processed" : "pending"} · {new Date(w.createdAt).toLocaleString()}</span>
+                <span className="text-xs text-gray-400">{w.signatureValid ? "verified" : "unverified"} · {w.processed ? "processed" : "pending"} · {formatDateTime(w.createdAt)}</span>
               </li>
             ))}
           </ul>

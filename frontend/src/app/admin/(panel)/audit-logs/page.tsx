@@ -1,4 +1,5 @@
 import { apiGet } from "@/lib/api";
+import { formatDateTime } from "@/lib/format";
 import { SectionHeader } from "@/components/admin-ui";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,7 @@ export default async function AuditLogsPage() {
           <tbody className="divide-y divide-navy-50">
             {logs.map((l) => (
               <tr key={l.id}>
-                <td className="px-4 py-2 text-gray-400">{new Date(l.createdAt).toLocaleString()}</td>
+                <td className="px-4 py-2 text-gray-400">{formatDateTime(l.createdAt)}</td>
                 <td className="px-4 py-2 text-gray-600">{l.actor?.name ?? "system"}</td>
                 <td className="px-4 py-2 font-medium text-navy-700">{l.action}</td>
                 <td className="px-4 py-2 text-xs text-gray-400">{l.entityType}{l.entityId ? `:${l.entityId.slice(0, 8)}` : ""}</td>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatDate } from "@/lib/format";
 import { apiGet } from "@/lib/api";
 import { StatCard, SectionHeader, StageBadge, SyncBadge, SOURCE_LABELS } from "@/components/admin-ui";
 
@@ -63,7 +64,7 @@ export default async function DashboardPage() {
                     <td className="py-2 text-gray-600">{SOURCE_LABELS[l.leadSource] ?? l.leadSource}</td>
                     <td className="py-2"><StageBadge stage={l.pipelineStage} /></td>
                     <td className="py-2"><SyncBadge status={l.ghlSyncStatus} /></td>
-                    <td className="py-2 text-gray-400">{new Date(l.createdAt).toLocaleDateString()}</td>
+                    <td className="py-2 text-gray-400">{formatDate(l.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
