@@ -3,8 +3,9 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { apiBase, authFetch } from "./api";
+import { apiBase, apiGet, authFetch } from "./api";
 import { SESSION_COOKIE, SESSION_MAX_AGE } from "./session";
+import type { NotificationItem } from "./notifications";
 
 export interface LoginState {
   error?: string;
@@ -57,4 +58,13 @@ export async function apiMutate(path: string, method: string, body?: unknown, re
   const data = await res.json().catch(() => ({}));
   if (revalidate) revalidatePath(revalidate);
   return { ok: res.ok, status: res.status, data };
+}
+
+/** Header notification feed. Returns [] on any error so the bell never breaks the page. */
+export async function getNotifications(): Promise<NotificationItem[]> {
+  try {
+    return await apiGet<NotificationItem[]>("/notifications");
+  } catch {
+    return [];
+  }
 }

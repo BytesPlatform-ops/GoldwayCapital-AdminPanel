@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { logoutAction } from "@/lib/actions";
+import NotificationBell from "@/components/NotificationBell";
 
 const NAV = [
   { href: "/admin/dashboard", label: "Dashboard", icon: "▦" },
@@ -93,6 +94,7 @@ export default function PanelChrome({ me, children }: { me: { name: string; role
           </button>
           <div className="font-bold tracking-widest text-navy-700 md:hidden">GOLDWAY</div>
           <div className="ml-auto flex items-center gap-4">
+            <NotificationBell />
             <div className="text-right">
               <div className="text-sm font-semibold text-navy-800">{me.name}</div>
               <div className="text-xs text-gray-500">{me.role}</div>

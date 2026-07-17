@@ -92,4 +92,51 @@ export class MiscService {
       take: 200,
     });
   }
+
+  /**
+   * Recent activity feed for the header notification bell. Derived on the fly from
+   * real records (new leads, new appointments, failed syncs) — no separate table.
+   * The client decides which are "unread" by comparing createdAt to its last-seen mark.
+   */
+  async notifications(): Promise<NotificationItem[]> {
+    const since = new Date(Date.now() - 14 * 86400000);
+    const [leads, appts, failed] = await Promise.all([
+      this.prisma.lead.findMany({
+        where: { createdAt: { gte: since } },
+        orderBy: { createdAt: "desc" },
+        take: 15,
+        select: { id: true, firstName: true, lastName: true, leadSource: true, createdAt: true },
+      }),
+      this.prisma.appointment.findMany({
+        where: { createdAt: { gte: since } },
+        orderBy: { createdAt: "desc" },
+        take: 15,
+        select: { id: true, serviceType: true, createdAt: true, lead: { select: { firstName: true, lastName: true } } },
+      }),
+      this.prisma.lead.findMany({
+        where: { ghlSyncStatus: "FAILED", updatedAt: { gte: since } },
+        orderBy: { updatedAt: "desc" },
+        take: 10,
+        select: { id: true, firstName: true, lastName: true, updatedAt: true },
+      }),
+    ]);
+
+    const prettySource = (s: string) => s.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+    const items: NotificationItem[] = [
+      ...leads.map((l) => ({ id: `lead:${l.id}`, type: "lead" as const, title: "New lead", detail: `${l.firstName} ${l.lastName} · ${prettySource(l.leadSource)}`, href: `/admin/leads/${l.id}`, createdAt: l.createdAt.toISOString() })),
+      ...appts.map((a) => ({ id: `appt:${a.id}`, type: "appointment" as const, title: "New appointment", detail: `${a.serviceType} · ${a.lead.firstName} ${a.lead.lastName}`, href: `/admin/appointments/${a.id}`, createdAt: a.createdAt.toISOString() })),
+      ...failed.map((l) => ({ id: `sync:${l.id}`, type: "alert" as const, title: "Lead sync failed", detail: `${l.firstName} ${l.lastName}`, href: `/admin/leads/${l.id}`, createdAt: l.updatedAt.toISOString() })),
+    ];
+    items.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    return items.slice(0, 25);
+  }
+}
+
+export interface NotificationItem {
+  id: string;
+  type: "lead" | "appointment" | "alert";
+  title: string;
+  detail: string;
+  href: string;
+  createdAt: string;
 }
