@@ -18,32 +18,54 @@ export default async function TasksPage() {
       {tasks.length === 0 ? (
         <div className="card text-center text-gray-500">No open tasks.</div>
       ) : (
-        <div className="card overflow-x-auto p-0">
-          <table className="w-full text-sm">
-            <thead className="border-b border-navy-100 bg-navy-50 text-left text-xs uppercase text-navy-700">
-              <tr><th className="px-4 py-3">Task</th><th className="px-4 py-3">Lead</th><th className="px-4 py-3">Assigned</th><th className="px-4 py-3">Due</th><th className="px-4 py-3"></th></tr>
-            </thead>
-            <tbody className="divide-y divide-navy-50">
-              {tasks.map((t) => {
-                const overdue = t.dueAt && new Date(t.dueAt) < now;
-                return (
-                  <tr key={t.id}>
-                    <td className="px-4 py-3 font-medium text-navy-700">{t.title}</td>
-                    <td className="px-4 py-3">{t.lead ? <Link href={`/admin/leads/${t.lead.id}`} className="text-navy-600 hover:underline">{t.lead.firstName} {t.lead.lastName}</Link> : "—"}</td>
-                    <td className="px-4 py-3 text-gray-600">{t.assignedTo?.name ?? "—"}</td>
-                    <td className="px-4 py-3">{t.dueAt ? <span className={overdue ? "font-semibold text-red-600" : "text-gray-600"}>{formatDate(t.dueAt)}{overdue ? " (overdue)" : ""}</span> : "—"}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-end gap-2">
-                        <CompleteButton id={t.id} />
-                        <ConfirmButton path={`/tasks/${t.id}`} title="Delete task?" message="This follow-up task will be permanently removed." />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div className="hidden overflow-x-auto rounded-xl border border-navy-100 bg-white shadow-sm md:block">
+            <table className="w-full text-sm">
+              <thead className="border-b border-navy-100 bg-navy-50 text-left text-xs uppercase text-navy-700">
+                <tr><th className="px-4 py-3">Task</th><th className="px-4 py-3">Lead</th><th className="px-4 py-3">Assigned</th><th className="px-4 py-3">Due</th><th className="px-4 py-3"></th></tr>
+              </thead>
+              <tbody className="divide-y divide-navy-50">
+                {tasks.map((t) => {
+                  const overdue = t.dueAt && new Date(t.dueAt) < now;
+                  return (
+                    <tr key={t.id}>
+                      <td className="px-4 py-3 font-medium text-navy-700">{t.title}</td>
+                      <td className="px-4 py-3">{t.lead ? <Link href={`/admin/leads/${t.lead.id}`} className="text-navy-600 hover:underline">{t.lead.firstName} {t.lead.lastName}</Link> : "—"}</td>
+                      <td className="px-4 py-3 text-gray-600">{t.assignedTo?.name ?? "—"}</td>
+                      <td className="px-4 py-3">{t.dueAt ? <span className={overdue ? "font-semibold text-red-600" : "text-gray-600"}>{formatDate(t.dueAt)}{overdue ? " (overdue)" : ""}</span> : "—"}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end gap-2">
+                          <CompleteButton id={t.id} />
+                          <ConfirmButton path={`/tasks/${t.id}`} title="Delete task?" message="This follow-up task will be permanently removed." />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="space-y-3 md:hidden">
+            {tasks.map((t) => {
+              const overdue = t.dueAt && new Date(t.dueAt) < now;
+              return (
+                <div key={t.id} className="card p-4">
+                  <div className="font-medium text-navy-700">{t.title}</div>
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                    <span>Lead: {t.lead ? <Link href={`/admin/leads/${t.lead.id}`} className="text-navy-600 hover:underline">{t.lead.firstName} {t.lead.lastName}</Link> : "—"}</span>
+                    <span>Assigned: {t.assignedTo?.name ?? "—"}</span>
+                    {t.dueAt && <span className={overdue ? "font-semibold text-red-600" : ""}>Due: {formatDate(t.dueAt)}{overdue ? " (overdue)" : ""}</span>}
+                  </div>
+                  <div className="mt-3 flex justify-end gap-2">
+                    <CompleteButton id={t.id} />
+                    <ConfirmButton path={`/tasks/${t.id}`} title="Delete task?" message="This follow-up task will be permanently removed." />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
     </div>
   );

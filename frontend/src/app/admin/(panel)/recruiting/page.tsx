@@ -17,24 +17,40 @@ export default async function RecruitingPage() {
       {leads.length === 0 ? (
         <div className="card text-center text-gray-500">No recruiting inquiries yet.</div>
       ) : (
-        <div className="card overflow-x-auto p-0">
-          <table className="w-full text-sm">
-            <thead className="border-b border-navy-100 bg-navy-50 text-left text-xs uppercase text-navy-700">
-              <tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Contact</th><th className="px-4 py-3">City / State</th><th className="px-4 py-3">Received</th><th className="px-4 py-3">Status</th></tr>
-            </thead>
-            <tbody className="divide-y divide-navy-50">
-              {leads.map((l) => (
-                <tr key={l.id}>
-                  <td className="px-4 py-3"><Link href={`/admin/leads/${l.id}`} className="font-semibold text-navy-700 hover:underline">{l.firstName} {l.lastName}</Link></td>
-                  <td className="px-4 py-3 text-gray-600"><div>{l.email}</div><div className="text-xs text-gray-400">{l.phone}</div></td>
-                  <td className="px-4 py-3 text-gray-600">{[l.city, l.state].filter(Boolean).join(", ") || "—"}</td>
-                  <td className="px-4 py-3 text-gray-400">{formatDate(l.createdAt)}</td>
-                  <td className="px-4 py-3"><RecruitingStatus id={l.id} current={l.recruitingStatus ?? "NEW"} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div className="hidden overflow-x-auto rounded-xl border border-navy-100 bg-white shadow-sm md:block">
+            <table className="w-full text-sm">
+              <thead className="border-b border-navy-100 bg-navy-50 text-left text-xs uppercase text-navy-700">
+                <tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Contact</th><th className="px-4 py-3">City / State</th><th className="px-4 py-3">Received</th><th className="px-4 py-3">Status</th></tr>
+              </thead>
+              <tbody className="divide-y divide-navy-50">
+                {leads.map((l) => (
+                  <tr key={l.id}>
+                    <td className="px-4 py-3"><Link href={`/admin/leads/${l.id}`} className="font-semibold text-navy-700 hover:underline">{l.firstName} {l.lastName}</Link></td>
+                    <td className="px-4 py-3 text-gray-600"><div>{l.email}</div><div className="text-xs text-gray-400">{l.phone}</div></td>
+                    <td className="px-4 py-3 text-gray-600">{[l.city, l.state].filter(Boolean).join(", ") || "—"}</td>
+                    <td className="px-4 py-3 text-gray-400">{formatDate(l.createdAt)}</td>
+                    <td className="px-4 py-3"><RecruitingStatus id={l.id} current={l.recruitingStatus ?? "NEW"} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="space-y-3 md:hidden">
+            {leads.map((l) => (
+              <div key={l.id} className="card p-4">
+                <Link href={`/admin/leads/${l.id}`} className="font-semibold text-navy-700 hover:underline">{l.firstName} {l.lastName}</Link>
+                <div className="mt-2 space-y-1 text-sm text-gray-600">
+                  {l.email && <div className="break-all">{l.email}</div>}
+                  {l.phone && <div className="text-gray-500">{l.phone}</div>}
+                  <div className="text-xs text-gray-500">{[l.city, l.state].filter(Boolean).join(", ") || "—"} · {formatDate(l.createdAt)}</div>
+                </div>
+                <div className="mt-3"><RecruitingStatus id={l.id} current={l.recruitingStatus ?? "NEW"} /></div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
