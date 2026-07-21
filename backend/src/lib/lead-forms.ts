@@ -62,6 +62,14 @@ export const FORM_GHL_FIELDS: Record<LeadSource, Record<string, string>> = {
     ahipCertified: "contact.ahip_certified_current_plan_year",
     recruitingBackground: "contact.recruiting_background",
   },
+  CONTACT: {
+    // General contact form. serviceInterest + preferredContactMethod are also
+    // stored on the Lead (via the DTO); here they double as GHL custom fields.
+    serviceInterest: "contact.service_interest",
+    preferredContactMethod: "contact.preferred_contact_method",
+    bestTimeToContact: "contact.best_time_to_contact",
+    message: "contact.contact_message",
+  },
 };
 
 // Required user-supplied fields per form (contact basics + the key qualifiers).
@@ -74,6 +82,7 @@ export const FORM_REQUIRED_FIELDS: Record<LeadSource, string[]> = {
   REVERSE_MTG: [...COMMON_REQUIRED, "age62OrOlder", "primaryResidence", "estimatedHomeValue", "estimatedMortgageBalance", "reverseMortgageMainGoal", "bestTimeToCall"],
   PROBATE: [...COMMON_REQUIRED, "state", "realEstateSituation", "realEstateTimeline", "bestTimeToCall"],
   RECRUITING: [...COMMON_REQUIRED, "stateOfResidence", "insuranceLicense"],
+  CONTACT: [...COMMON_REQUIRED, "email"],
 };
 
 /** All whitelisted per-form answer keys (common + vertical). */

@@ -18,6 +18,7 @@ export const LEAD_SOURCE_DEFS: LeadSourceDef[] = [
   { source: "REVERSE_MTG", key: "reverse-mortgage", label: "Reverse Mortgage", ghlTag: "reverse-mtg", formName: "Reverse Mortgage Inquiry", serviceInterest: "Reverse Mortgage Solutions", isMedicare: false, isRecruiting: false },
   { source: "PROBATE", key: "probate", label: "Probate / Senior Real Estate", ghlTag: "probate", formName: "Senior Real Estate & Probate Inquiry", serviceInterest: "Senior Real Estate & Probate Solutions", isMedicare: false, isRecruiting: false },
   { source: "RECRUITING", key: "recruiting", label: "Join Our Team", ghlTag: "recruiting", formName: "Medicare Agent Opportunities", serviceInterest: "Recruiting", isMedicare: false, isRecruiting: true },
+  { source: "CONTACT", key: "contact", label: "Contact", ghlTag: "contact", formName: "Contact Form", serviceInterest: "General Inquiry", isMedicare: false, isRecruiting: false },
 ];
 
 export function leadSourceByPath(key: string): LeadSourceDef | undefined {

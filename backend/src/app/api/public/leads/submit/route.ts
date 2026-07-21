@@ -26,6 +26,7 @@ const FORM_TYPES: Record<string, LeadSource> = {
   "reverse-mtg": "REVERSE_MTG",
   probate: "PROBATE",
   recruiting: "RECRUITING",
+  contact: "CONTACT",
 };
 
 export async function POST(req: NextRequest) {

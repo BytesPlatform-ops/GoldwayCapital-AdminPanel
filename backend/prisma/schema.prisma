@@ -37,6 +37,7 @@ enum LeadSource {
   REVERSE_MTG
   PROBATE
   RECRUITING
+  CONTACT
 }
 
 enum PipelineStage {
