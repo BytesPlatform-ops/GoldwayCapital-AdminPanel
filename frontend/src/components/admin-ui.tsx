@@ -16,6 +16,7 @@ export const SOURCE_LABELS: Record<string, string> = {
   REVERSE_MTG: "Reverse Mortgage",
   PROBATE: "Probate / Senior RE",
   RECRUITING: "Recruiting",
+  CONTACT: "Contact",
 };
 
 export function StageBadge({ stage }: { stage: string }) {

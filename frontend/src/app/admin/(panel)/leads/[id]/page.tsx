@@ -35,6 +35,8 @@ const ANSWER_LABELS: Record<string, string> = {
   realEstateSituation: "Real estate situation", executorOrHeir: "Executor or heir", realEstateTimeline: "Timeline", realEstateDetails: "Details",
   stateOfResidence: "State of residence", insuranceLicense: "Holds insurance license", licensedLines: "Licensed lines",
   ahipCertified: "AHIP certified", recruitingBackground: "Background",
+  serviceInterest: "Service interest", preferredContactMethod: "Preferred contact method",
+  bestTimeToContact: "Best time to contact", message: "Message",
 };
 
 function labelFor(key: string): string {
