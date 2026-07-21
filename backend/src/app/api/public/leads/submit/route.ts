@@ -39,10 +39,29 @@ export async function POST(req: NextRequest) {
     const formType = String(body.formType ?? "").toLowerCase().trim().replace(/_/g, "-");
     const source = FORM_TYPES[formType];
     if (!source) {
+      // TEMP DIAGNOSTIC (remove after debugging contact form): log the body when
+      // the formType can't be resolved so we can see exactly what WP is sending.
+      console.warn("[lead-intake][DIAG] unresolved formType=%j keys=%j body=%j", body.formType, Object.keys(body), body);
       throw new BadRequestException(`Invalid or missing formType. Expected one of: ${[...new Set(Object.keys(FORM_TYPES))].join(", ")}`);
     }
-    const result = await services.forms.intake(source, toCreateLeadDto(body), body, requestContext(req));
-    return { ...result, calendarLink: config.calendarLinks[source] || null };
+    try {
+      const result = await services.forms.intake(source, toCreateLeadDto(body), body, requestContext(req));
+      return { ...result, calendarLink: config.calendarLinks[source] || null };
+    } catch (err) {
+      // TEMP DIAGNOSTIC (remove after debugging contact form): on any rejection,
+      // log the incoming field names + values, phone/email presence, and the exact
+      // error message so we can see why validation fails.
+      console.warn(
+        "[lead-intake][DIAG] rejected source=%s keys=%j phonePresent=%s emailPresent=%s message=%s body=%j",
+        source,
+        Object.keys(body),
+        !!String(body.phone ?? "").trim(),
+        !!String(body.email ?? "").trim(),
+        err instanceof Error ? err.message : String(err),
+        body
+      );
+      throw err;
+    }
   }, 201);
   return withCors(res, req);
 }
