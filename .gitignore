@@ -39,3 +39,6 @@ npm-debug.log*
 
 
 .claude/
+
+# WordPress site backups (large, never commit)
+*.wpress
