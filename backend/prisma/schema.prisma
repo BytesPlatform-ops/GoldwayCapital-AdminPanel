@@ -304,6 +304,11 @@ model FollowUpTask {
   completedAt  DateTime?
   createdAt    DateTime   @default(now())
 
+  // GHL task id — set when the task was mirrored into GoHighLevel (best-effort on
+  // intake). Null means "local only, not yet pushed" (GHL create failed/pending);
+  // the sync retry backfills it. Unique so webhook reconciliation upserts by it.
+  ghlTaskId String? @unique
+
   @@index([assignedToId])
   @@index([status])
   @@index([dueAt])
