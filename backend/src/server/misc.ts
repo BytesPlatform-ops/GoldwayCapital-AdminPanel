@@ -12,10 +12,17 @@ export class MiscService {
     return this.prisma.user.findMany({ where: { isActive: true }, select: { id: true, name: true, role: true }, orderBy: { name: "asc" } });
   }
 
-  openTasks() {
+  /**
+   * Follow-up tasks for the Tasks page. Filtered by status: "open" (default) shows
+   * pending work, "completed" shows the done record (VA audit trail), "all" shows
+   * both. Completed tasks are ordered by most-recently-completed.
+   */
+  tasks(filter?: string) {
+    const status = filter === "completed" ? "completed" : filter === "all" ? "all" : "open";
+    const where = status === "all" ? {} : { status: status === "completed" ? ("DONE" as const) : ("OPEN" as const) };
     return this.prisma.followUpTask.findMany({
-      where: { status: "OPEN" },
-      orderBy: { dueAt: "asc" },
+      where,
+      orderBy: status === "completed" ? { completedAt: "desc" } : { dueAt: "asc" },
       include: { lead: { select: { id: true, firstName: true, lastName: true } }, assignedTo: { select: { name: true } } },
       take: 200,
     });
