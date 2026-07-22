@@ -18,16 +18,21 @@ export interface ContactLead {
   preferredContactMethod?: string | null;
   createdAt: string;
   assignedTo?: { name: string } | null;
-  formSubmissions?: { sanitizedPayload?: { formAnswers?: Record<string, unknown> } | null }[];
+  formSubmissions?: { sanitizedPayload?: { formAnswers?: Record<string, unknown>; hidden?: Record<string, unknown> } | null }[];
 }
 
 const answersOf = (l: ContactLead): Record<string, unknown> => l.formSubmissions?.[0]?.sanitizedPayload?.formAnswers ?? {};
+// The contact form sends "best time" as the common `bestTimeToCall` (in hidden),
+// not the vertical `bestTimeToContact` — read both so it always shows.
+const hiddenOf = (l: ContactLead): Record<string, unknown> => l.formSubmissions?.[0]?.sanitizedPayload?.hidden ?? {};
 const str = (v: unknown): string => (v === null || v === undefined ? "" : Array.isArray(v) ? v.join(", ") : String(v));
 
 export function ContactTable({ leads }: { leads: ContactLead[] }) {
   const [selected, setSelected] = useState<ContactLead | null>(null);
   const answers = selected ? answersOf(selected) : {};
+  const hidden = selected ? hiddenOf(selected) : {};
   const message = str(answers.message);
+  const bestTime = str(answers.bestTimeToContact) || str(hidden.bestTimeToCall);
 
   return (
     <>
@@ -82,7 +87,7 @@ export function ContactTable({ leads }: { leads: ContactLead[] }) {
               <DetailRow label="Location" value={[selected.city, selected.state, selected.zipCode].filter(Boolean).join(", ") || "—"} />
               <DetailRow label="Service interest" value={str(selected.serviceInterest) || str(answers.serviceInterest) || "—"} />
               <DetailRow label="Preferred contact" value={str(selected.preferredContactMethod) || str(answers.preferredContactMethod) || "—"} />
-              <DetailRow label="Best time to contact" value={str(answers.bestTimeToContact) || "—"} />
+              <DetailRow label="Best time to contact" value={bestTime || "—"} />
               <DetailRow label="Assigned" value={selected.assignedTo?.name ?? "—"} />
 
               <div className="pt-2">
