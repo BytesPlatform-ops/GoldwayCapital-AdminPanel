@@ -6,7 +6,7 @@ import { IntegrationLogsService } from "@/server/integration-logs";
 import { leadSourceDef } from "@/lib/constants";
 import { GhlMockAdapter } from "./ghl-mock.adapter";
 import { GhlLiveAdapter } from "./ghl-live.adapter";
-import type { GhlAdapter } from "./ghl.types";
+import type { GhlAdapter, GhlTask } from "./ghl.types";
 
 export class GhlService {
   private readonly logger = new Logger("GHL");
@@ -204,14 +204,75 @@ export class GhlService {
     }
   }
 
-  /** Retry all leads currently in FAILED sync state. */
-  async retryFailed(): Promise<{ retried: number; succeeded: number }> {
+  /**
+   * Push a follow-up task into GHL for an already-synced lead. Best-effort:
+   * returns the GHL task id, or null on any failure so the caller keeps the
+   * local task (never-lose-a-lead) and lets the sync retry backfill it later.
+   */
+  async createTaskForLead(leadId: string, contactId: string, input: { title: string; body?: string; dueDate?: string }): Promise<string | null> {
+    const adapter = this.adapter();
+    const started = Date.now();
+    try {
+      const res = await this.logs.withRetry(() => adapter.createTask({ contactId, ...input }));
+      await this.logs.record({ provider: "ghl", operation: "createTask", status: res.mock ? "mock" : "success", relatedType: "lead", relatedId: leadId, response: { taskId: res.id }, durationMs: Date.now() - started });
+      return res.id || null;
+    } catch (err) {
+      await this.logs.record({ provider: "ghl", operation: "createTask", status: "failed", relatedType: "lead", relatedId: leadId, response: { error: String(err) }, durationMs: Date.now() - started });
+      return null;
+    }
+  }
+
+  /** Mark a GHL task complete (panel → GHL). Best-effort + logged; returns success. */
+  async completeTask(leadId: string, contactId: string, taskId: string): Promise<boolean> {
+    const adapter = this.adapter();
+    const started = Date.now();
+    try {
+      await this.logs.withRetry(() => adapter.completeTask(contactId, taskId));
+      await this.logs.record({ provider: "ghl", operation: "completeTask", status: adapter.isLive ? "success" : "mock", relatedType: "lead", relatedId: leadId, request: { taskId }, durationMs: Date.now() - started });
+      return true;
+    } catch (err) {
+      await this.logs.record({ provider: "ghl", operation: "completeTask", status: "failed", relatedType: "lead", relatedId: leadId, request: { taskId }, response: { error: String(err) }, durationMs: Date.now() - started });
+      return false;
+    }
+  }
+
+  /** Read-only list of a contact's GHL tasks — powers webhook completion reconciliation. */
+  listContactTasks(contactId: string): Promise<GhlTask[]> {
+    return this.logs.withRetry(() => this.adapter().listContactTasks(contactId));
+  }
+
+  /**
+   * Retry all leads in FAILED sync state, then backfill any local tasks that were
+   * never pushed to GHL (ghlTaskId null) for leads that DO have a contact id — this
+   * recovers tasks whose create failed even though the lead itself synced fine.
+   */
+  async retryFailed(): Promise<{ retried: number; succeeded: number; tasksPushed: number }> {
     const failed = await this.prisma.lead.findMany({ where: { ghlSyncStatus: "FAILED" }, select: { id: true } });
     let succeeded = 0;
     for (const l of failed) {
       const r = await this.syncLead(l.id);
       if (r && r.ghlSyncStatus !== "FAILED") succeeded++;
     }
-    return { retried: failed.length, succeeded };
+
+    const pending = await this.prisma.followUpTask.findMany({
+      where: { ghlTaskId: null, status: "OPEN", lead: { ghlContactId: { not: null } } },
+      select: { id: true, title: true, description: true, dueAt: true, leadId: true, lead: { select: { ghlContactId: true } } },
+      take: 200,
+    });
+    let tasksPushed = 0;
+    for (const t of pending) {
+      const contactId = t.lead?.ghlContactId;
+      if (!contactId || !t.leadId) continue;
+      const ghlTaskId = await this.createTaskForLead(t.leadId, contactId, {
+        title: t.title,
+        body: t.description ?? undefined,
+        dueDate: t.dueAt ? t.dueAt.toISOString() : undefined,
+      });
+      if (ghlTaskId) {
+        await this.prisma.followUpTask.update({ where: { id: t.id }, data: { ghlTaskId } });
+        tasksPushed++;
+      }
+    }
+    return { retried: failed.length, succeeded, tasksPushed };
   }
 }
