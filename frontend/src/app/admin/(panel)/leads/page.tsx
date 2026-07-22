@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { apiGet } from "@/lib/api";
 import { SectionHeader, StageBadge, SyncBadge, SOURCE_LABELS, STAGE_LABELS } from "@/components/admin-ui";
 import { ConfirmButton } from "@/components/ConfirmButton";
@@ -73,7 +73,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: { q?: 
                       <td className="px-4 py-3 text-gray-600">{l.assignedTo?.name ?? <span className="text-gray-400">—</span>}</td>
                       <td className="px-4 py-3">{l.nextFollowUpAt ? <span className={overdue ? "font-semibold text-red-600" : "text-gray-600"}>{formatDate(l.nextFollowUpAt)}</span> : <span className="text-gray-400">—</span>}</td>
                       <td className="px-4 py-3"><SyncBadge status={l.ghlSyncStatus} /></td>
-                      <td className="px-4 py-3 text-gray-400">{formatDate(l.createdAt)}</td>
+                      <td className="px-4 py-3 text-gray-400">{formatDateTime(l.createdAt)}</td>
                       <td className="px-4 py-3 text-right"><ConfirmButton path={`/leads/${l.id}`} title="Delete this lead?" message={`${l.firstName} ${l.lastName} and all related notes, calls, emails and appointments will be permanently deleted.`} /></td>
                     </tr>
                   );
@@ -98,7 +98,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: { q?: 
                     <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1 text-xs text-gray-500">
                       <span>{SOURCE_LABELS[l.leadSource] ?? l.leadSource}</span>
                       <span>Assigned: {l.assignedTo?.name ?? "—"}</span>
-                      <span>Created: {formatDate(l.createdAt)}</span>
+                      <span>Created: {formatDateTime(l.createdAt)}</span>
                       {l.nextFollowUpAt && <span className={overdue ? "font-semibold text-red-600" : ""}>Follow-up: {formatDate(l.nextFollowUpAt)}</span>}
                     </div>
                   </div>
