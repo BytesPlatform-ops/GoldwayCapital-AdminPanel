@@ -111,6 +111,24 @@ export class MiscService {
   }
 
   /**
+   * Contact-form leads. These have no pipeline (they never appear on the board),
+   * so they get their own inbox. Includes the latest submission's answers so the
+   * detail drawer can show the free-text message + best-time-to-contact, which
+   * live on FormSubmission, not on Lead.
+   */
+  contactLeads() {
+    return this.prisma.lead.findMany({
+      where: { leadSource: "CONTACT" },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+      include: {
+        assignedTo: { select: { name: true } },
+        formSubmissions: { orderBy: { createdAt: "desc" }, take: 1, select: { sanitizedPayload: true } },
+      },
+    });
+  }
+
+  /**
    * Recent activity feed for the header notification bell. Derived on the fly from
    * real records (new leads, new appointments, failed syncs) — no separate table.
    * The client decides which are "unread" by comparing createdAt to its last-seen mark.
