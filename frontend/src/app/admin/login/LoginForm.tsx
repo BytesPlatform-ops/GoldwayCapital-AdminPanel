@@ -37,10 +37,10 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} className="space-y-4" autoComplete="off">
       <div>
         <label className="label" htmlFor="email">Email</label>
-        <input id="email" name="email" type="email" autoComplete="username" required className="input" placeholder="owner@goldwaycapital.com" />
+        <input id="email" name="email" type="email" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} required className="input" placeholder="owner@goldwaycapital.com" />
       </div>
       <div>
         <label className="label" htmlFor="password">Password</label>
@@ -49,7 +49,7 @@ export function LoginForm() {
             id="password"
             name="password"
             type={showPassword ? "text" : "password"}
-            autoComplete="current-password"
+            autoComplete="new-password"
             required
             className="input pr-11"
             placeholder="••••••••"
