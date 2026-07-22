@@ -1,11 +1,12 @@
 import type { PrismaService } from "@/db/prisma";
 import type { AuditService } from "@/server/audit";
+import type { GhlService } from "@/integrations/ghl/ghl.service";
 import type { AuthUser } from "@/types";
 import { NotFoundException } from "@/lib/nest";
 
 /** Small read/utility operations: users (for assignment), tasks, appointments, recruiting. */
 export class MiscService {
-  constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) {}
+  constructor(private readonly prisma: PrismaService, private readonly audit: AuditService, private readonly ghl: GhlService) {}
 
   users() {
     return this.prisma.user.findMany({ where: { isActive: true }, select: { id: true, name: true, role: true }, orderBy: { name: "asc" } });
@@ -21,8 +22,17 @@ export class MiscService {
   }
 
   async completeTask(id: string, user: AuthUser) {
-    await this.prisma.followUpTask.update({ where: { id }, data: { status: "DONE", completedAt: new Date() } });
+    const task = await this.prisma.followUpTask.update({
+      where: { id },
+      data: { status: "DONE", completedAt: new Date() },
+      select: { id: true, ghlTaskId: true, lead: { select: { id: true, ghlContactId: true } } },
+    });
     await this.audit.log({ actorId: user.id, action: "task.completed", entityType: "task", entityId: id });
+    // Mirror completion to GHL (panel → GHL). Best-effort: only when this task was
+    // pushed to GHL (ghlTaskId) and its lead has a contact id.
+    if (task.ghlTaskId && task.lead?.ghlContactId) {
+      await this.ghl.completeTask(task.lead.id, task.lead.ghlContactId, task.ghlTaskId).catch(() => undefined);
+    }
     return { ok: true };
   }
 

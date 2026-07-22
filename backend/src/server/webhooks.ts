@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import type { PrismaService } from "@/db/prisma";
 import type { AppConfigService } from "@/lib/config";
 import type { AuditService } from "@/server/audit";
+import type { GhlService } from "@/integrations/ghl/ghl.service";
 import { UnauthorizedException } from "@/lib/errors";
 import { parseGhlAppointment, isGhlAppointmentEvent, type ParsedGhlAppointment } from "./ghl-webhook-parser";
 
@@ -10,8 +11,19 @@ export interface WebhookAuth {
   secret?: string | null; // shared secret header/query fallback
 }
 
+/**
+ * True when the payload is a GHL task event (our "Task Completed" workflow posts
+ * `{ event: "task.completed", contactId }`). Tolerant of GHL's native task-trigger
+ * shapes too (a `task` object, or a type/event string mentioning "task").
+ */
+function isGhlTaskEvent(payload: any): boolean {
+  if (payload?.task) return true;
+  const t = String(payload?.type ?? payload?.event ?? payload?.eventType ?? "").toLowerCase();
+  return t.includes("task");
+}
+
 export class WebhooksService {
-  constructor(private readonly prisma: PrismaService, private readonly config: AppConfigService, private readonly audit: AuditService) {}
+  constructor(private readonly prisma: PrismaService, private readonly config: AppConfigService, private readonly audit: AuditService, private readonly ghl: GhlService) {}
 
   private signatureMatches(raw: string, signature?: string | null): boolean {
     const secret = this.config.ghl.webhookSecret;
@@ -55,6 +67,7 @@ export class WebhooksService {
    * rather than the opaque "unknown".
    */
   private eventType(payload: any): string {
+    if (isGhlTaskEvent(payload)) return "task.completed";
     return String(payload?.type ?? payload?.event ?? (isGhlAppointmentEvent(payload) ? "appointment.booked" : "unknown"));
   }
 
@@ -78,6 +91,13 @@ export class WebhooksService {
     if (!valid) throw new UnauthorizedException("Invalid or missing webhook authentication");
 
     try {
+      // Task-completed events (from GHL's "Task Completed" trigger) carry only a
+      // contact id — reconcile that contact's tasks and mark local ones done.
+      if (isGhlTaskEvent(payload)) {
+        await this.handleTaskCompletion(payload, event.id);
+        return { ok: true };
+      }
+
       const appt = parseGhlAppointment(payload);
       const contactId = appt?.contactId ?? payload?.contact_id ?? payload?.contactId ?? payload?.contact?.id ?? null;
       const email = typeof payload?.email === "string" && payload.email.trim() ? payload.email.trim() : null;
@@ -133,6 +153,39 @@ export class WebhooksService {
       await this.prisma.webhookEvent.update({ where: { id: event.id }, data: { processingError: String(err) } });
     }
     return { ok: true };
+  }
+
+  /**
+   * A GHL "task completed" webhook carries only a contact id (no task-level merge
+   * fields exist in GHL). We re-read that contact's tasks via the read API and mark
+   * the matching local FollowUpTask(s) done by EXACT ghlTaskId — no title guessing.
+   */
+  private async handleTaskCompletion(payload: any, eventId: string) {
+    const contactId = payload?.contact_id ?? payload?.contactId ?? payload?.contact?.id ?? null;
+    if (!contactId) {
+      await this.prisma.webhookEvent.update({ where: { id: eventId }, data: { processingError: "task_event: no contact id" } });
+      return;
+    }
+    const lead = await this.prisma.lead.findFirst({ where: { ghlContactId: String(contactId) }, select: { id: true } });
+    if (!lead) {
+      // Unlinked, like the appointment path: leave a visible trace, don't silently drop.
+      await this.prisma.webhookEvent.update({ where: { id: eventId }, data: { processingError: `task_event: no lead for contactId=${contactId}` } });
+      await this.audit.log({ action: "ghl.webhook_unlinked_task", entityType: "webhook", entityId: eventId, metadata: { contactId: String(contactId) } });
+      return;
+    }
+    // listContactTasks may throw (API error) → outer catch records processingError.
+    const tasks = await this.ghl.listContactTasks(String(contactId));
+    const completedIds = tasks.filter((t) => t.completed).map((t) => t.id);
+    let updated = 0;
+    if (completedIds.length) {
+      const res = await this.prisma.followUpTask.updateMany({
+        where: { ghlTaskId: { in: completedIds }, status: "OPEN" },
+        data: { status: "DONE", completedAt: new Date() },
+      });
+      updated = res.count;
+    }
+    await this.prisma.webhookEvent.update({ where: { id: eventId }, data: { processed: true } });
+    await this.audit.log({ action: "ghl.task_completed_synced", entityType: "webhook", entityId: eventId, metadata: { contactId: String(contactId), completed: updated } });
   }
 
   /** Create or update the local Appointment mirror of a GHL calendar booking. */

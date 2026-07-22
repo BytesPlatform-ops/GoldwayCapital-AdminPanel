@@ -40,9 +40,9 @@ function build() {
   const dashboard = new DashboardService(prisma);
   const pipeline = new PipelineService(prisma);
   const settings = new SettingsService(prisma, config);
-  const misc = new MiscService(prisma, audit);
+  const misc = new MiscService(prisma, audit, ghl);
   const integrations = new IntegrationsService(prisma, config, ghl, wordpress, social);
-  const webhooks = new WebhooksService(prisma, config, audit);
+  const webhooks = new WebhooksService(prisma, config, audit, ghl);
   return { audit, integrationLogs, compliance, email, ghl, wordpress, social, forms, leads, content, dashboard, pipeline, settings, misc, integrations, webhooks };
 }
 
