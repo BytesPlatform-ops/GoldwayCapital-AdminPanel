@@ -21,6 +21,9 @@ export interface GhlPingResult { ok: boolean; mock: boolean; detail: string }
 
 export type GhlCustomFieldMap = Record<string, string | number | boolean | null>;
 
+// A GHL task as returned by the read API — only the fields we reconcile against.
+export interface GhlTask { id: string; title: string; completed: boolean }
+
 // Read-model shapes for the introspection helpers (pipelines/calendars/fields).
 export interface GhlPipeline { id: string; name: string; stages: { id: string; name: string }[] }
 export interface GhlCalendar { id: string; name: string; slug?: string }
@@ -67,6 +70,8 @@ export interface GhlAdapter {
   moveOpportunityStage(opportunityId: string, pipelineStageId: string): Promise<void>;
   addContactToWorkflow(contactId: string, workflowId: string): Promise<void>;
   createTask(input: { contactId: string; title: string; body?: string; dueDate?: string }): Promise<GhlResultBase>;
+  completeTask(contactId: string, taskId: string): Promise<void>;
+  listContactTasks(contactId: string): Promise<GhlTask[]>;
   createNote(input: { contactId: string; body: string }): Promise<GhlResultBase>;
   getPipelines(): Promise<GhlPipeline[]>;
   getCalendars(): Promise<GhlCalendar[]>;

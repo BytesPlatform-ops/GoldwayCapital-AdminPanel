@@ -1,4 +1,4 @@
-import type { GhlAdapter, GhlCalendar, GhlContactInput, GhlContactResult, GhlCustomField, GhlCustomFieldMap, GhlOpportunityInput, GhlOpportunityResult, GhlPingResult, GhlPipeline, GhlResultBase } from "./ghl.types";
+import type { GhlAdapter, GhlCalendar, GhlContactInput, GhlContactResult, GhlCustomField, GhlCustomFieldMap, GhlOpportunityInput, GhlOpportunityResult, GhlPingResult, GhlPipeline, GhlResultBase, GhlTask } from "./ghl.types";
 
 /** Mock GHL — deterministic fake IDs, no network. Used when GHL is off/mock. */
 export class GhlMockAdapter implements GhlAdapter {
@@ -26,6 +26,8 @@ export class GhlMockAdapter implements GhlAdapter {
   async createTask(input: { contactId: string; title: string }): Promise<GhlResultBase> {
     return { id: this.id("task", input.contactId + input.title), mock: true };
   }
+  async completeTask(): Promise<void> {}
+  async listContactTasks(): Promise<GhlTask[]> { return []; }
   async createNote(input: { contactId: string }): Promise<GhlResultBase> {
     return { id: this.id("note", input.contactId), mock: true };
   }

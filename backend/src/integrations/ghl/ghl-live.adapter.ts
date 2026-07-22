@@ -12,6 +12,7 @@ import {
   type GhlPingResult,
   type GhlPipeline,
   type GhlResultBase,
+  type GhlTask,
 } from "./ghl.types";
 
 // GHL requires a Version header per endpoint family. Pipelines/contacts/custom
@@ -145,6 +146,24 @@ export class GhlLiveAdapter implements GhlAdapter {
       completed: false,
     });
     return { id: data.task?.id ?? data.id ?? "", mock: false };
+  }
+
+  /** Mark a GHL task complete. Dedicated endpoint — avoids the update endpoint's
+   *  required-field validation (title/dueDate). Best-effort at the call site. */
+  async completeTask(contactId: string, taskId: string): Promise<void> {
+    await this.req(`/contacts/${contactId}/tasks/${taskId}/completed`, "PUT", { completed: true });
+  }
+
+  /** Tasks for one contact (read-only). Powers webhook reconciliation — GHL has no
+   *  location-wide task list, so completion sync is always contact-scoped. */
+  async listContactTasks(contactId: string): Promise<GhlTask[]> {
+    const data = await this.req<{ tasks?: Array<{ id?: string; _id?: string; title?: string; completed?: boolean }> }>(
+      `/contacts/${contactId}/tasks`,
+      "GET"
+    );
+    return (data.tasks ?? [])
+      .map((t) => ({ id: String(t.id ?? t._id ?? ""), title: t.title ?? "", completed: !!t.completed }))
+      .filter((t) => !!t.id);
   }
 
   async createNote(input: { contactId: string; body: string }): Promise<GhlResultBase> {
