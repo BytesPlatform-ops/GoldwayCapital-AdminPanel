@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { logoutAction } from "@/lib/actions";
 import NotificationBell from "@/components/NotificationBell";
 import IdleTimeout from "@/components/IdleTimeout";
+import SignOutButton from "@/components/SignOutButton";
 
 const NAV = [
   { href: "/admin/dashboard", label: "Dashboard", icon: "▦" },
@@ -96,9 +96,7 @@ export default function PanelChrome({ me, children }: { me: { name: string; role
               <div className="text-sm font-semibold text-navy-800">{me.name}</div>
               <div className="text-xs text-gray-500">{me.role}</div>
             </div>
-            <form action={logoutAction}>
-              <button className="btn-ghost text-sm" type="submit">Sign out</button>
-            </form>
+            <SignOutButton />
           </div>
         </header>
         <main className="flex-1 p-4 sm:p-6">{children}</main>

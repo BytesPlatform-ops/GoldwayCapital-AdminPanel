@@ -41,16 +41,33 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
   redirect("/admin/dashboard");
 }
 
+/**
+ * Clear the session cookie for good. We both overwrite it with an immediately
+ * expired value (matching the attributes login set, so the browser reliably drops
+ * it) and delete it — belt and braces so no stale token survives sign-out.
+ */
+function clearSession() {
+  cookies().set(SESSION_COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 0,
+    expires: new Date(0),
+    path: "/",
+  });
+  cookies().delete(SESSION_COOKIE);
+}
+
 export async function logoutAction() {
   await authFetch("/logout", { method: "POST" }).catch(() => undefined);
-  cookies().delete(SESSION_COOKIE);
+  clearSession();
   redirect("/admin/login");
 }
 
 /** Same as logoutAction but flags the login page to explain the auto sign-out. */
 export async function inactivityLogout() {
   await authFetch("/logout", { method: "POST" }).catch(() => undefined);
-  cookies().delete(SESSION_COOKIE);
+  clearSession();
   redirect("/admin/login?timeout=1");
 }
 
