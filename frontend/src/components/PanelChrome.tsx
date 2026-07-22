@@ -17,7 +17,6 @@ const NAV = [
   { href: "/admin/contact", label: "Contact", icon: "☎" },
   { href: "/admin/compliance", label: "Compliance", icon: "⚖" },
   { href: "/admin/settings", label: "Settings", icon: "⚙" },
-  { href: "/admin/audit-logs", label: "Audit Logs", icon: "❑" },
 ];
 
 function Brand() {
