@@ -7,7 +7,7 @@ import { GhlService } from "@/integrations/ghl/ghl.service";
 import { EmailService } from "@/integrations/email/email.service";
 import { AuditService } from "@/server/audit";
 import { leadSourceDef } from "@/lib/constants";
-import { buildGhlCustomFields, normalizeYesNo, pickFormAnswers } from "@/lib/lead-forms";
+import { buildGhlCustomFields, buildTaskDescription, normalizeYesNo, pickFormAnswers } from "@/lib/lead-forms";
 import { validateLeadSubmission } from "@/lib/lead-validation";
 import { CreateLeadDto } from "./dto/create-lead.dto";
 
@@ -156,13 +156,26 @@ export class FormsService {
     // Auto-create a follow-up task so the panel's Tasks page reflects new leads
     // even if the GHL push below fails (never-lose-a-lead). System-generated → no
     // author. Best-effort: a task-insert failure must never roll back a saved lead.
-    // The GHL mirror happens after sync (needs the contact id) — see step 4.
+    // The GHL mirror happens after sync (needs the contact id) — see step 4. The
+    // same title + description is stored locally and pushed to GHL.
     const taskDueAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const taskTitle = `Follow up: New ${def.formName} inquiry — ${dto.firstName} ${dto.lastName}`.trim();
+    const taskDescription = buildTaskDescription(source, {
+      formName: def.formName,
+      phone: dto.phone,
+      email: dto.email,
+      city: dto.city,
+      state: dto.state,
+      zipCode: dto.zipCode,
+      // Vertical answers + the common timing field + contact basics used by CONTACT.
+      values: { serviceInterest: dto.serviceInterest, preferredContactMethod: dto.preferredContactMethod, ...answers, bestTimeToCall: hidden.bestTimeToCall },
+    });
     const followUpTask = await this.prisma.followUpTask
       .create({
         data: {
           leadId: lead.id,
-          title: `Follow up with new ${def.label} lead: ${dto.firstName} ${dto.lastName}`.trim(),
+          title: taskTitle,
+          description: taskDescription,
           dueAt: taskDueAt,
           status: "OPEN",
         },
@@ -181,7 +194,7 @@ export class FormsService {
     // backfills it — the panel task is already saved regardless.
     if (followUpTask && synced?.ghlContactId) {
       const ghlTaskId = await this.ghl
-        .createTaskForLead(lead.id, synced.ghlContactId, { title: followUpTask.title, dueDate: taskDueAt.toISOString() })
+        .createTaskForLead(lead.id, synced.ghlContactId, { title: followUpTask.title, body: followUpTask.description ?? undefined, dueDate: taskDueAt.toISOString() })
         .catch(() => null);
       if (ghlTaskId) {
         await this.prisma.followUpTask.update({ where: { id: followUpTask.id }, data: { ghlTaskId } }).catch(() => undefined);
