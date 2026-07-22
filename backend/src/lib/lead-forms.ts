@@ -116,6 +116,96 @@ export function opportunityName(source: LeadSource, firstName: string, lastName:
   return `${firstName} ${lastName} — ${leadSourceDef(source).label}`.trim();
 }
 
+// Per-form fields rendered into the follow-up task description, in display order,
+// as [valueKey, humanLabel]. `bestTimeToCall` is the common timing field; contact
+// basics (phone/email/location) and `message` are rendered separately. Probate's
+// `state` is shown in the Location line, so it is not repeated here.
+const TASK_FIELD_LABELS: Record<LeadSource, Array<[string, string]>> = {
+  MEDICARE: [
+    ["county", "County"],
+    ["turning65", "Turning 65"],
+    ["currentlyEnrolledMedicare", "Currently enrolled in Medicare"],
+    ["medicareHelpWith", "Needs help with"],
+    ["medicareBiggestQuestion", "Biggest question"],
+    ["bestTimeToCall", "Best time to call"],
+  ],
+  FINAL_EXPENSE: [
+    ["ageRange", "Age range"],
+    ["finalExpenseCoverage", "Has current coverage"],
+    ["finalExpenseMostImportant", "Most important"],
+    ["bestTimeToCall", "Best time to call"],
+  ],
+  REVERSE_MTG: [
+    ["age62OrOlder", "Age 62 or older"],
+    ["primaryResidence", "Primary residence"],
+    ["estimatedHomeValue", "Estimated home value"],
+    ["estimatedMortgageBalance", "Estimated mortgage balance"],
+    ["reverseMortgageMainGoal", "Main goal"],
+    ["reverseMortgageBiggestConcern", "Biggest concern"],
+    ["bestTimeToCall", "Best time to call"],
+  ],
+  PROBATE: [
+    ["realEstateSituation", "Real estate situation"],
+    ["executorOrHeir", "Executor or heir"],
+    ["realEstateTimeline", "Timeline"],
+    ["realEstateDetails", "Details"],
+    ["bestTimeToCall", "Best time to call"],
+  ],
+  RECRUITING: [
+    ["stateOfResidence", "State of residence"],
+    ["insuranceLicense", "Holds insurance license"],
+    ["licensedLines", "Licensed lines"],
+    ["ahipCertified", "AHIP certified (current plan year)"],
+    ["recruitingBackground", "Background"],
+  ],
+  CONTACT: [
+    ["serviceInterest", "Service interest"],
+    ["preferredContactMethod", "Preferred contact method"],
+    ["bestTimeToContact", "Best time to contact"],
+  ],
+};
+
+export interface TaskDescriptionInput {
+  formName: string;
+  phone?: string | null;
+  email?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
+  /** Merged answer bag: vertical answers + bestTimeToCall + contact basics + message. */
+  values: Record<string, unknown>;
+}
+
+const hasValue = (v: unknown): boolean => v !== undefined && v !== null && String(v).trim() !== "";
+const showValue = (v: unknown): string => (Array.isArray(v) ? v.join(", ") : String(v)).trim();
+
+/**
+ * Human-readable follow-up task body for a lead — the same text is stored on the
+ * local FollowUpTask and pushed to the GHL task. Empty/missing fields are skipped
+ * so no blank lines appear. Blocks are separated by a single blank line.
+ */
+export function buildTaskDescription(source: LeadSource, input: TaskDescriptionInput): string {
+  const blocks: string[] = [`New ${input.formName} submission.`];
+
+  const contact: string[] = [];
+  if (hasValue(input.phone)) contact.push(`Phone: ${showValue(input.phone)}`);
+  if (hasValue(input.email)) contact.push(`Email: ${showValue(input.email)}`);
+  const cityState = [input.city, input.state].filter(hasValue).map(showValue).join(", ");
+  const location = [cityState, hasValue(input.zipCode) ? showValue(input.zipCode) : ""].filter(Boolean).join(" ").trim();
+  if (location) contact.push(`Location: ${location}`);
+  if (contact.length) blocks.push(contact.join("\n"));
+
+  const specifics = (TASK_FIELD_LABELS[source] ?? [])
+    .filter(([key]) => hasValue(input.values[key]))
+    .map(([key, label]) => `${label}: ${showValue(input.values[key])}`);
+  if (specifics.length) blocks.push(specifics.join("\n"));
+
+  if (hasValue(input.values.message)) blocks.push(`Message/Notes: ${showValue(input.values.message)}`);
+
+  blocks.push("Reach out using the preferred method during the selected time window.");
+  return blocks.join("\n\n");
+}
+
 /** Pick only the whitelisted vertical answer values a site sent (blank-dropped). */
 export function pickFormAnswers(source: LeadSource, body: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
