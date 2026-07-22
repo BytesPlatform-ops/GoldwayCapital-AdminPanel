@@ -15,13 +15,9 @@ const NAV = [
   { href: "/admin/appointments", label: "Appointments", icon: "◷" },
   { href: "/admin/recruiting", label: "Recruiting", icon: "★" },
   { href: "/admin/contact", label: "Contact", icon: "☎" },
-  { href: "/admin/content", label: "Content", icon: "✎" },
-  { href: "/admin/social-publishing", label: "Social Publishing", icon: "➤" },
   { href: "/admin/compliance", label: "Compliance", icon: "⚖" },
-  { href: "/admin/integrations", label: "Integrations", icon: "⚡" },
   { href: "/admin/settings", label: "Settings", icon: "⚙" },
   { href: "/admin/audit-logs", label: "Audit Logs", icon: "❑" },
-  { href: "/admin/integration-logs", label: "Integration Logs", icon: "⇄" },
 ];
 
 function Brand() {
