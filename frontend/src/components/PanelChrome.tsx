@@ -14,6 +14,7 @@ const NAV = [
   { href: "/admin/tasks", label: "Follow-up Tasks", icon: "✓" },
   { href: "/admin/appointments", label: "Appointments", icon: "◷" },
   { href: "/admin/recruiting", label: "Recruiting", icon: "★" },
+  { href: "/admin/contact", label: "Contact", icon: "☎" },
   { href: "/admin/content", label: "Content", icon: "✎" },
   { href: "/admin/social-publishing", label: "Social Publishing", icon: "➤" },
   { href: "/admin/compliance", label: "Compliance", icon: "⚖" },
