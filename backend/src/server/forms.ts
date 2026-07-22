@@ -154,18 +154,20 @@ export class FormsService {
     await this.prisma.formSubmission.update({ where: { id: submission.id }, data: { leadId: lead.id } });
 
     // Auto-create a follow-up task so the panel's Tasks page reflects new leads
-    // (mirrors the GHL-side task). System-generated → no author. Best-effort:
-    // a task-insert failure must never roll back a saved lead.
-    await this.prisma.followUpTask
+    // even if the GHL push below fails (never-lose-a-lead). System-generated → no
+    // author. Best-effort: a task-insert failure must never roll back a saved lead.
+    // The GHL mirror happens after sync (needs the contact id) — see step 4.
+    const taskDueAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const followUpTask = await this.prisma.followUpTask
       .create({
         data: {
           leadId: lead.id,
           title: `Follow up with new ${def.label} lead: ${dto.firstName} ${dto.lastName}`.trim(),
-          dueAt: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+          dueAt: taskDueAt,
           status: "OPEN",
         },
       })
-      .catch(() => undefined);
+      .catch(() => null);
 
     await this.audit.log({ action: "form.submitted", entityType: "lead", entityId: lead.id, metadata: { source, blockedFields }, ipAddress: ctx.ip });
     await this.audit.log({ action: "lead.created", entityType: "lead", entityId: lead.id });
@@ -173,6 +175,19 @@ export class FormsService {
     // 4. GHL sync + confirmation email (best-effort, never block the response).
     //    Email is sent only when the lead consented to email contact.
     const synced = await this.ghl.syncLead(lead.id).catch(() => undefined);
+
+    // Mirror the follow-up task into GHL now that the contact exists. Best-effort:
+    // on failure the local task simply keeps ghlTaskId=null and ghl.retryFailed()
+    // backfills it — the panel task is already saved regardless.
+    if (followUpTask && synced?.ghlContactId) {
+      const ghlTaskId = await this.ghl
+        .createTaskForLead(lead.id, synced.ghlContactId, { title: followUpTask.title, dueDate: taskDueAt.toISOString() })
+        .catch(() => null);
+      if (ghlTaskId) {
+        await this.prisma.followUpTask.update({ where: { id: followUpTask.id }, data: { ghlTaskId } }).catch(() => undefined);
+      }
+    }
+
     if (dto.email && emailConsent === "Yes") {
       await this.email.sendConfirmation(lead.id, source, dto.email, dto.firstName).catch(() => undefined);
     }
