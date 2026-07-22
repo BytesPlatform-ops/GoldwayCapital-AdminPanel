@@ -1,5 +1,6 @@
 import { apiGet } from "@/lib/api";
 import { SectionHeader } from "@/components/admin-ui";
+import { AutoFilter } from "@/components/AutoFilter";
 import { TasksTable, type Task } from "./TasksTable";
 
 export const dynamic = "force-dynamic";
@@ -18,17 +19,22 @@ export default async function TasksPage({ searchParams }: { searchParams: { stat
     <div>
       <SectionHeader title="Follow-up Tasks" subtitle={`${tasks.length} ${noun}${tasks.length === 1 ? "" : "s"}`} />
 
-      <form method="get" className="card mb-6 flex items-end gap-3">
-        <div>
-          <label className="label">Filter by status</label>
-          <select name="status" defaultValue={status} className="input">
-            <option value="open">Open</option>
-            <option value="completed">Completed</option>
-            <option value="all">All</option>
-          </select>
-        </div>
-        <button className="btn-primary" type="submit">Filter</button>
-      </form>
+      <AutoFilter
+        className="card mb-6 flex items-end gap-3"
+        fields={[
+          {
+            type: "select",
+            name: "status",
+            label: "Filter by status",
+            defaultValue: "open",
+            options: [
+              { value: "open", label: "Open" },
+              { value: "completed", label: "Completed" },
+              { value: "all", label: "All" },
+            ],
+          },
+        ]}
+      />
 
       {tasks.length === 0 ? (
         <div className="card text-center text-gray-500">No {noun}s.</div>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { apiGet } from "@/lib/api";
 import { SectionHeader, StageBadge, SyncBadge, SOURCE_LABELS, STAGE_LABELS } from "@/components/admin-ui";
+import { AutoFilter } from "@/components/AutoFilter";
 import { ConfirmButton } from "@/components/ConfirmButton";
 
 export const dynamic = "force-dynamic";
@@ -21,35 +22,15 @@ export default async function LeadsPage({ searchParams }: { searchParams: { q?: 
     <div>
       <SectionHeader title="Lead Inbox" subtitle={`${leads.length} lead${leads.length === 1 ? "" : "s"} shown`} />
 
-      <form method="get" className="card mb-6 flex flex-wrap items-end gap-4">
-        <div className="min-w-[220px] flex-1">
-          <label className="label" htmlFor="q">Search</label>
-          <input id="q" name="q" defaultValue={searchParams.q} className="input" placeholder="Name, email or phone" />
-        </div>
-        <div>
-          <label className="label">Source</label>
-          <select name="source" defaultValue={searchParams.source ?? ""} className="input">
-            <option value="">All sources</option>
-            {Object.entries(SOURCE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="label">Stage</label>
-          <select name="stage" defaultValue={searchParams.stage ?? ""} className="input">
-            <option value="">All stages</option>
-            {Object.entries(STAGE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="label">GHL sync</label>
-          <select name="syncStatus" defaultValue={searchParams.syncStatus ?? ""} className="input">
-            <option value="">Any</option>
-            {["SYNCED", "SYNCED_MOCK", "PENDING", "FAILED", "NOT_SYNCED"].map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-        <button className="btn-primary" type="submit">Filter</button>
-        <Link href="/admin/leads" className="btn-ghost">Reset</Link>
-      </form>
+      <AutoFilter
+        reset
+        fields={[
+          { type: "search", name: "q", label: "Search", placeholder: "Name, email or phone" },
+          { type: "select", name: "source", label: "Source", options: [{ value: "", label: "All sources" }, ...Object.entries(SOURCE_LABELS).map(([k, v]) => ({ value: k, label: v }))] },
+          { type: "select", name: "stage", label: "Stage", options: [{ value: "", label: "All stages" }, ...Object.entries(STAGE_LABELS).map(([k, v]) => ({ value: k, label: v }))] },
+          { type: "select", name: "syncStatus", label: "GHL sync", options: [{ value: "", label: "Any" }, ...["SYNCED", "SYNCED_MOCK", "PENDING", "FAILED", "NOT_SYNCED"].map((s) => ({ value: s, label: s }))] },
+        ]}
+      />
 
       {leads.length === 0 ? (
         <div className="card text-center text-gray-500">No leads match your filters.</div>

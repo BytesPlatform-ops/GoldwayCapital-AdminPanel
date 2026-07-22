@@ -2,6 +2,7 @@ import Link from "next/link";
 import { formatDateTime } from "@/lib/format";
 import { apiGet } from "@/lib/api";
 import { SectionHeader } from "@/components/admin-ui";
+import { AutoFilter } from "@/components/AutoFilter";
 import { ConfirmButton } from "@/components/ConfirmButton";
 
 export const dynamic = "force-dynamic";
@@ -21,18 +22,17 @@ export default async function AppointmentsPage({ searchParams }: { searchParams:
   return (
     <div>
       <SectionHeader title="Appointments" subtitle="Upcoming consultations. Medicare appointments show SOA status." />
-      <form method="get" className="card mb-6 flex items-end gap-3">
-        <div>
-          <label className="label">Filter by service</label>
-          <select name="service" defaultValue={service} className="input">
-            <option value="">All services</option>
-            {serviceTypes.map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
-        </div>
-        <button className="btn-primary" type="submit">Filter</button>
-      </form>
+      <AutoFilter
+        className="card mb-6 flex items-end gap-3"
+        fields={[
+          {
+            type: "select",
+            name: "service",
+            label: "Filter by service",
+            options: [{ value: "", label: "All services" }, ...serviceTypes.map((t) => ({ value: t, label: t }))],
+          },
+        ]}
+      />
       {appts.length === 0 ? (
         <div className="card text-center text-gray-500">No upcoming appointments.</div>
       ) : (
